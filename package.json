@@ -1,0 +1,31 @@
+{
+  "name": "agentsmd",
+  "version": "0.0.1",
+  "description": "Universal manager, linter and sync tool for AI-coding-agent config files (AGENTS.md, CLAUDE.md, .cursorrules, .github/copilot-instructions.md, .windsurfrules).",
+  "bin": {
+    "agentsmd": "dist/cli.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsc",
+    "lint": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types tests/*.test.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": ["ai", "agents", "claude", "cursor", "copilot", "windsurf", "config", "cli"],
+  "author": "Naveen Ganadi",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Naveen-Sai-Ganadi/agentsmd.git"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.11.0"
+  }
+}
