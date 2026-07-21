@@ -4,13 +4,18 @@ Universal manager, linter, and sync tool for AI-coding-agent config files.
 
 Keep `AGENTS.md`, `CLAUDE.md`, `.cursorrules`, `.github/copilot-instructions.md`, and `.windsurfrules` in sync — from a single source of truth.
 
-> **Status:** pre-alpha. `check` and `sync` are functional; `init`, `lint`, `audit` land in v0.1.0.
+> **Status:** pre-alpha. `check`, `sync`, and `init` are functional; `lint`, `audit`, `check` (CI mode) land in v0.1.0.
 
 ## Quickstart
 
 ```sh
 # See which agent config files exist in this repo
 agentsmd check .
+
+# Scaffold AGENTS.md — dry-run preview first, then apply
+agentsmd init .                # merges any pre-existing rule files
+agentsmd init . --apply        # write it
+agentsmd init . --blank --apply  # start blank instead of merging
 
 # Preview what would change (dry-run is the default; safe to run anywhere)
 agentsmd sync .

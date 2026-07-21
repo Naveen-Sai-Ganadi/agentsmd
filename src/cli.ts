@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { detectConfigs, kindLabel } from "./detect";
 import { planSync, applySync, ALL_TARGETS, SyncTarget } from "./sync";
+import { planInit, applyInit } from "./init";
 
 const HELP = `agentsmd — manage AI-coding-agent config files
 
@@ -11,7 +12,9 @@ Commands:
   check [path]           Detect agent config files in the given repo (default: cwd)
   sync  [path] [--apply] Preview (default) or apply syncing AGENTS.md → other configs
                          --targets=claude,cursor,copilot,windsurf   (default: all)
-  init                   (planned) Scaffold AGENTS.md from repo scan
+  init  [path] [--apply] Scaffold AGENTS.md from repo scan (dry-run by default)
+                         --blank         start blank instead of merging existing rules
+                         --force         overwrite an existing AGENTS.md (with --apply)
   lint                   (planned) Lint AGENTS.md for quality issues
   audit                  (planned) Score AGENTS.md across 6 quality dimensions
   help                   Show this help
@@ -98,7 +101,34 @@ async function main(argv: string[]): Promise<number> {
       }
       return 0;
     }
-    case "init":
+    case "init": {
+      const { positional, flags } = parseArgs(rest);
+      const root = positional[0] ?? process.cwd();
+      const apply = flags.apply === true;
+      const force = flags.force === true;
+      const mode: "merge" | "blank" = flags.blank === true ? "blank" : "merge";
+      const plan = await planInit(root, { mode, force });
+      const modeLabel = apply ? "APPLY" : "DRY-RUN";
+      console.log(`init (${modeLabel}) — target: ${plan.target}`);
+      console.log(`  mode: ${plan.mode}${plan.sources.length ? ` (merging ${plan.sources.length} existing file(s))` : ""}`);
+      if (plan.repo.stack.length) console.log(`  stack: ${plan.repo.stack.join(", ")}`);
+      console.log(`  action: ${plan.action}`);
+      if (plan.action === "skip-exists") {
+        console.error(`\nAGENTS.md already exists. Re-run with --force --apply to overwrite.`);
+        return apply ? 1 : 0;
+      }
+      if (apply) {
+        await applyInit(plan);
+        console.log(`\nWrote ${plan.target} (${Buffer.byteLength(plan.rendered, "utf8")} bytes).`);
+        console.log(`Next: run \`agentsmd sync --apply\` to propagate to other configs.`);
+      } else {
+        console.log(`\n--- preview (first 40 lines) ---`);
+        console.log(plan.rendered.split("\n").slice(0, 40).join("\n"));
+        console.log(`--- end preview ---\n`);
+        console.log(`Dry-run only. Re-run with --apply to write ${plan.target}.`);
+      }
+      return 0;
+    }
     case "lint":
     case "audit": {
       console.log(`\`${cmd}\` is planned for v0.1.0 — not yet implemented.`);
