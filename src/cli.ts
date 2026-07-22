@@ -2,6 +2,7 @@
 import { detectConfigs, kindLabel } from "./detect";
 import { planSync, applySync, ALL_TARGETS, SyncTarget } from "./sync";
 import { planInit, applyInit } from "./init";
+import { lintAgentsMd, auditAgentsMd, LintSeverity } from "./lint";
 
 const HELP = `agentsmd — manage AI-coding-agent config files
 
@@ -15,8 +16,8 @@ Commands:
   init  [path] [--apply] Scaffold AGENTS.md from repo scan (dry-run by default)
                          --blank         start blank instead of merging existing rules
                          --force         overwrite an existing AGENTS.md (with --apply)
-  lint                   (planned) Lint AGENTS.md for quality issues
-  audit                  (planned) Score AGENTS.md across 6 quality dimensions
+  lint  [path]           Lint AGENTS.md for quality issues (--json for machine output)
+  audit [path]           Score AGENTS.md across 6 quality dimensions (--json)
   help                   Show this help
 `;
 
@@ -129,9 +130,47 @@ async function main(argv: string[]): Promise<number> {
       }
       return 0;
     }
-    case "lint":
+    case "lint": {
+      const { positional, flags } = parseArgs(rest);
+      const root = positional[0] ?? process.cwd();
+      const report = await lintAgentsMd(root);
+      if (flags.json === true) {
+        console.log(JSON.stringify(report, null, 2));
+      } else {
+        console.log(`lint — ${report.target}`);
+        if (!report.exists) {
+          console.error(`AGENTS.md not found.`);
+        } else {
+          console.log(`  bytes: ${report.bytes}, issues: ${report.issues.length}`);
+        }
+        const order: LintSeverity[] = ["error", "warn", "info"];
+        for (const sev of order) {
+          for (const iss of report.issues.filter((i) => i.severity === sev)) {
+            const loc = iss.line ? `:${iss.line}` : "";
+            console.log(`  [${sev.toUpperCase().padEnd(5)}] ${iss.rule}${loc} — ${iss.message}`);
+          }
+        }
+        if (report.issues.length === 0) console.log(`  no issues found ✓`);
+      }
+      const hasError = report.issues.some((i) => i.severity === "error");
+      return hasError ? 1 : 0;
+    }
     case "audit": {
-      console.log(`\`${cmd}\` is planned for v0.1.0 — not yet implemented.`);
+      const { positional, flags } = parseArgs(rest);
+      const root = positional[0] ?? process.cwd();
+      const report = await auditAgentsMd(root);
+      if (flags.json === true) {
+        console.log(JSON.stringify(report, null, 2));
+      } else {
+        console.log(`audit — ${report.target}`);
+        console.log(`  overall: ${report.overall}/100  (grade ${report.grade})`);
+        for (const d of report.dimensions) {
+          console.log(`  - ${d.dimension.padEnd(13)} ${String(d.score).padStart(3)}/100  ${d.notes.join(" ")}`);
+        }
+        const errs = report.lint.issues.filter((i) => i.severity === "error").length;
+        const warns = report.lint.issues.filter((i) => i.severity === "warn").length;
+        console.log(`  lint: ${errs} error(s), ${warns} warning(s)`);
+      }
       return 0;
     }
     case "help":
