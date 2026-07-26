@@ -1,0 +1,102 @@
+name: "agentsmd check"
+description: "Lint and audit AGENTS.md as a CI gate. Fails the workflow when the file drifts, degrades, or is missing."
+author: "Naveen Ganadi"
+branding:
+  icon: "check-square"
+  color: "blue"
+
+inputs:
+  path:
+    description: "Repo path to check (relative to $GITHUB_WORKSPACE)."
+    required: false
+    default: "."
+  min-grade:
+    description: "Minimum audit grade required to pass (A, B, C, D, F). Default: C."
+    required: false
+    default: "C"
+  min-score:
+    description: "Override numeric audit floor (0-100). Takes precedence over min-grade when set."
+    required: false
+    default: ""
+  fail-on:
+    description: "Lint severity that fails the run: error, warn, or info. Default: error."
+    required: false
+    default: "error"
+  node-version:
+    description: "Node.js version to use."
+    required: false
+    default: "22"
+  version:
+    description: "agentsmd version or git ref to run (npm dist-tag, semver, or 'source' to build this action's checkout)."
+    required: false
+    default: "source"
+
+outputs:
+  passed:
+    description: "'true' when the check passed, 'false' otherwise."
+    value: ${{ steps.run.outputs.passed }}
+  grade:
+    description: "Audit grade letter (A-F)."
+    value: ${{ steps.run.outputs.grade }}
+  score:
+    description: "Overall audit score (0-100)."
+    value: ${{ steps.run.outputs.score }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Install and build agentsmd (source mode)
+      if: ${{ inputs.version == 'source' }}
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: |
+        npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+        npm run build
+
+    - name: Run agentsmd check
+      id: run
+      shell: bash
+      env:
+        AGENTSMD_PATH: ${{ inputs.path }}
+        AGENTSMD_MIN_GRADE: ${{ inputs.min-grade }}
+        AGENTSMD_MIN_SCORE: ${{ inputs.min-score }}
+        AGENTSMD_FAIL_ON: ${{ inputs.fail-on }}
+        AGENTSMD_VERSION: ${{ inputs.version }}
+        AGENTSMD_ACTION_PATH: ${{ github.action_path }}
+      run: |
+        set -euo pipefail
+        args=("check" "$AGENTSMD_PATH" "--min-grade=$AGENTSMD_MIN_GRADE" "--fail-on=$AGENTSMD_FAIL_ON")
+        if [ -n "$AGENTSMD_MIN_SCORE" ]; then
+          args+=("--min-score=$AGENTSMD_MIN_SCORE")
+        fi
+
+        if [ "$AGENTSMD_VERSION" = "source" ]; then
+          BIN="node $AGENTSMD_ACTION_PATH/dist/cli.js"
+        else
+          BIN="npx --yes agentsmd@$AGENTSMD_VERSION"
+        fi
+
+        # Human-readable output for logs
+        $BIN "${args[@]}" || true
+
+        # JSON output for machine-readable outputs + gate exit
+        JSON=$($BIN "${args[@]}" --json)
+        echo "$JSON" > agentsmd-check.json
+
+        PASSED=$(node -e "console.log(JSON.parse(require('fs').readFileSync('agentsmd-check.json','utf8')).passed)")
+        GRADE=$(node -e "console.log(JSON.parse(require('fs').readFileSync('agentsmd-check.json','utf8')).audit.grade)")
+        SCORE=$(node -e "console.log(JSON.parse(require('fs').readFileSync('agentsmd-check.json','utf8')).audit.overall)")
+
+        echo "passed=$PASSED" >> "$GITHUB_OUTPUT"
+        echo "grade=$GRADE" >> "$GITHUB_OUTPUT"
+        echo "score=$SCORE" >> "$GITHUB_OUTPUT"
+
+        if [ "$PASSED" != "true" ]; then
+          echo "::error::agentsmd check failed (grade=$GRADE, score=$SCORE)"
+          exit 1
+        fi

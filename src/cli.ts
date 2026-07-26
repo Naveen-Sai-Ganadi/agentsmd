@@ -3,6 +3,7 @@ import { detectConfigs, kindLabel } from "./detect";
 import { planSync, applySync, ALL_TARGETS, SyncTarget } from "./sync";
 import { planInit, applyInit } from "./init";
 import { lintAgentsMd, auditAgentsMd, LintSeverity } from "./lint";
+import { runCheck, parseGrade, parseFailOn } from "./check";
 
 const HELP = `agentsmd — manage AI-coding-agent config files
 
@@ -10,14 +11,19 @@ Usage:
   agentsmd <command> [path] [options]
 
 Commands:
-  check [path]           Detect agent config files in the given repo (default: cwd)
-  sync  [path] [--apply] Preview (default) or apply syncing AGENTS.md → other configs
+  detect [path]          Detect agent config files in the given repo (default: cwd)
+  sync   [path] [--apply] Preview (default) or apply syncing AGENTS.md → other configs
                          --targets=claude,cursor,copilot,windsurf   (default: all)
-  init  [path] [--apply] Scaffold AGENTS.md from repo scan (dry-run by default)
+  init   [path] [--apply] Scaffold AGENTS.md from repo scan (dry-run by default)
                          --blank         start blank instead of merging existing rules
                          --force         overwrite an existing AGENTS.md (with --apply)
-  lint  [path]           Lint AGENTS.md for quality issues (--json for machine output)
-  audit [path]           Score AGENTS.md across 6 quality dimensions (--json)
+  lint   [path]          Lint AGENTS.md for quality issues (--json for machine output)
+  audit  [path]          Score AGENTS.md across 6 quality dimensions (--json)
+  check  [path]          CI gate: lint + audit with pass/fail (for GitHub Actions).
+                         --min-grade=A|B|C|D|F   audit floor (default C = 60)
+                         --min-score=N           override numeric floor (0-100)
+                         --fail-on=error|warn|info  lint severity to fail on (default error)
+                         --json                  machine-readable output
   help                   Show this help
 `;
 
@@ -66,7 +72,7 @@ function parseArgs(rest: string[]): ParsedArgs {
 async function main(argv: string[]): Promise<number> {
   const [, , cmd = "help", ...rest] = argv;
   switch (cmd) {
-    case "check": {
+    case "detect": {
       const root = rest[0] ?? process.cwd();
       const files = await detectConfigs(root);
       if (files.length === 0) {
@@ -76,6 +82,35 @@ async function main(argv: string[]): Promise<number> {
       console.log(`Detected ${files.length} agent config file(s) in ${root}:`);
       for (const f of files) console.log(`  - ${kindLabel(f.kind)}  (${f.path})`);
       return 0;
+    }
+    case "check": {
+      const { positional, flags } = parseArgs(rest);
+      const root = positional[0] ?? process.cwd();
+      const minGrade = parseGrade(typeof flags["min-grade"] === "string" ? flags["min-grade"] : undefined);
+      const minScore =
+        typeof flags["min-score"] === "string" ? Number.parseInt(flags["min-score"], 10) : undefined;
+      const failOn = parseFailOn(typeof flags["fail-on"] === "string" ? flags["fail-on"] : undefined);
+      const result = await runCheck(root, { minGrade, minScore, failOn });
+      if (flags.json === true) {
+        console.log(JSON.stringify(result, null, 2));
+      } else {
+        console.log(`check — ${result.target}`);
+        console.log(
+          `  gate: min-grade=${result.gate.minGrade} (>=${result.gate.minScore}), fail-on=${result.gate.failOn}`,
+        );
+        console.log(`  audit: ${result.audit.overall}/100  (grade ${result.audit.grade})`);
+        const errs = result.lint.issues.filter((i) => i.severity === "error").length;
+        const warns = result.lint.issues.filter((i) => i.severity === "warn").length;
+        const infos = result.lint.issues.filter((i) => i.severity === "info").length;
+        console.log(`  lint:  ${errs} error(s), ${warns} warning(s), ${infos} info`);
+        if (result.passed) {
+          console.log(`  status: PASS ✓`);
+        } else {
+          console.log(`  status: FAIL ✗`);
+          for (const r of result.reasons) console.log(`    - ${r}`);
+        }
+      }
+      return result.passed ? 0 : 1;
     }
     case "sync": {
       const { positional, flags } = parseArgs(rest);

@@ -21,3 +21,14 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm test
+
+  self-check:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dogfood agentsmd check action
+        uses: ./
+        with:
+          path: .
+          min-grade: C
