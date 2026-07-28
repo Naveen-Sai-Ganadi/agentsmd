@@ -1,42 +1,77 @@
 # agentsmd
 
-Universal manager, linter, and sync tool for AI-coding-agent config files.
+**One source of truth for every AI coding agent's config file.**
 
-Keep `AGENTS.md`, `CLAUDE.md`, `.cursorrules`, `.github/copilot-instructions.md`, and `.windsurfrules` in sync — from a single source of truth.
+`AGENTS.md` → `CLAUDE.md`, `.cursorrules`, `.github/copilot-instructions.md`, `.windsurfrules`. Lint it, score it, sync it, gate PRs on it.
 
-> **Status:** pre-alpha. `detect`, `sync`, `init`, `lint`, `audit`, and `check` (CI gate) are all functional. Reusable GitHub Action shipped in v0.0.4.
+[![CI](https://github.com/Naveen-Sai-Ganadi/agentsmd/actions/workflows/ci.yml/badge.svg)](https://github.com/Naveen-Sai-Ganadi/agentsmd/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
+[![Node](https://img.shields.io/badge/node-%3E%3D22-blue.svg)](package.json)
 
-## Quickstart
+> **Status:** pre-alpha, working toward v0.1.0. All six commands (`detect`, `init`, `sync`, `lint`, `audit`, `check`) plus a reusable GitHub Action are functional and dogfooded on this repo.
+
+---
+
+## The problem
+
+Every coding assistant wants its own rules file:
+
+```
+your-repo/
+├── AGENTS.md                              # OpenAI Codex, Cursor (new), Zed, Sourcegraph…
+├── CLAUDE.md                              # Claude Code, Claude for VS Code
+├── .cursorrules                           # Cursor (legacy)
+├── .github/copilot-instructions.md        # GitHub Copilot
+└── .windsurfrules                         # Windsurf
+```
+
+Five files. Near-duplicate content. They drift. Reviewers see one; the assistant reads another. `agentsmd` treats `AGENTS.md` as the source of truth and keeps the rest aligned — with a lint + audit gate that fails CI if the source rots.
+
+## Quickstart (30 seconds)
 
 ```sh
-# See which agent config files exist in this repo
-agentsmd detect .
+# 1. See which agent config files your repo already has
+npx agentsmd detect .
 
-# Scaffold AGENTS.md — dry-run preview first, then apply
-agentsmd init .                # merges any pre-existing rule files
-agentsmd init . --apply        # write it
-agentsmd init . --blank --apply  # start blank instead of merging
+# 2. Scaffold AGENTS.md by merging whatever's there
+npx agentsmd init . --apply
 
-# Preview what would change (dry-run is the default; safe to run anywhere)
-agentsmd sync .
+# 3. Generate the other four from AGENTS.md
+npx agentsmd sync . --apply
 
-# Actually write the derived files
-agentsmd sync . --apply
+# 4. Score what you just wrote
+npx agentsmd audit .
+```
 
-# Sync only a subset
+> `sync` and `init` default to dry-run. You always see the diff before anything is written.
+
+Every generated file starts with an `agentsmd:generated` banner, so reviewers can tell it apart from a hand-written config at a glance.
+
+## Commands
+
+| Command | What it does | Default |
+|---|---|---|
+| `agentsmd detect [path]` | List which agent config files exist in the repo | read-only |
+| `agentsmd init [path]` | Scaffold `AGENTS.md` from a repo scan (merges existing rules) | dry-run |
+| `agentsmd sync [path]` | Sync `AGENTS.md` → the other four files | dry-run |
+| `agentsmd lint [path]` | Lint `AGENTS.md` for structure + quality issues | text output |
+| `agentsmd audit [path]` | Score `AGENTS.md` across 6 dimensions (clarity, coverage, structure, examples, guardrails, freshness) | letter grade |
+| `agentsmd check [path]` | CI gate: `lint` + `audit` with pass/fail exit codes | fails below `C` |
+
+Add `--json` to `lint`, `audit`, or `check` for machine-readable output.
+
+### Flag cheatsheet
+
+```sh
+# init: start fresh instead of merging existing rules
+agentsmd init . --blank --apply
+
+# sync: pick a subset of targets
 agentsmd sync . --apply --targets=claude,cursor
 
-# Lint AGENTS.md for common quality issues
-agentsmd lint .
-agentsmd lint . --json
-
-# Score AGENTS.md across 6 quality dimensions
-agentsmd audit .
-
-# CI gate: combined lint + audit with pass/fail exit codes
-agentsmd check .
+# check: tighten the CI gate
 agentsmd check . --min-grade=B --fail-on=warn
-agentsmd check . --json
+agentsmd check . --min-score=75 --json
 ```
 
 ## Use in GitHub Actions
@@ -47,46 +82,40 @@ Drop this into a workflow to gate PRs on `AGENTS.md` quality:
 - uses: Naveen-Sai-Ganadi/agentsmd@main
   with:
     path: .
-    min-grade: C          # A|B|C|D|F, default C (score >= 60)
-    fail-on: error        # error|warn|info, default error
+    min-grade: C          # A|B|C|D|F  (default C, ≥ 60)
+    fail-on: error        # error|warn|info  (default error)
     # min-score: 75       # optional numeric override
+    # version: 0.0.4      # once published to npm, pins the CLI version
 ```
 
-The step exits non-zero when lint errors are present or the audit falls below the floor.
-Outputs `passed`, `grade`, and `score` are available for downstream steps.
+The step exits non-zero when lint errors are present or the audit falls below the floor. Outputs `passed`, `grade`, and `score` are available to downstream steps.
 
-Every generated file starts with an `agentsmd:generated` banner so you (and reviewers) can tell it apart from a hand-written config.
+## How it compares
 
-## Why
-
-Every coding assistant wants its own config file. Teams end up with 3–5 near-duplicate rule files that drift, contradict each other, and rot. `agentsmd` treats `AGENTS.md` as the source of truth and keeps the rest aligned.
+| | agentsmd | `agents-lint` | AgentLint (marketplace) | agentlinter.com |
+|---|---|---|---|---|
+| `sync` (one source → five files) | ✅ | ❌ | ❌ | ❌ |
+| `init` (scaffold from a repo scan) | ✅ | ❌ | ❌ | partial |
+| `lint` (structure + quality rules) | ✅ | ✅ (stale refs only) | ✅ | ✅ |
+| `audit` (letter-grade scorecard) | ✅ | ❌ | partial | ✅ |
+| CI action / gate | ✅ | ❌ | ✅ | hosted only |
+| Local, one-binary, MIT | ✅ | ✅ | ❌ | ❌ |
 
 ## Install
 
 ```sh
-npm install -g agentsmd
-```
-
-Or run without installing (once published):
-
-```sh
+npm install -g agentsmd     # once published
+# or, no install:
 npx agentsmd check .
 ```
 
-## Commands (planned surface)
+## Contributing
 
-| Command | Purpose |
-|---|---|
-| `agentsmd detect [path]` | Detect which agent config files exist in a repo |
-| `agentsmd init` | Scaffold `AGENTS.md` from a repo scan |
-| `agentsmd sync` | Sync `AGENTS.md` → the other four files |
-| `agentsmd lint` | Lint `AGENTS.md` for common quality issues |
-| `agentsmd audit` | Score `AGENTS.md` across 6 quality dimensions |
-| `agentsmd check` | CI gate: run lint + audit and fail below thresholds |
+Bug reports, feature ideas, and PRs welcome — see [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the dev loop, coding conventions, and how to add a new command.
 
-## Roadmap to v0.1.0
+## Roadmap
 
-See [`STATE.md`](./STATE.md).
+Public roadmap and daily status: [`STATE.md`](./STATE.md).
 
 ## License
 
