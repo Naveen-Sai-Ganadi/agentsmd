@@ -1,6 +1,6 @@
 {
   "name": "agentsmd",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Universal manager, linter and sync tool for AI-coding-agent config files (AGENTS.md, CLAUDE.md, .cursorrules, .github/copilot-instructions.md, .windsurfrules).",
   "bin": {
     "agentsmd": "dist/cli.js"
