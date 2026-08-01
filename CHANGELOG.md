@@ -3,6 +3,14 @@
 All notable changes to `agentsmd` are documented in this file.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+- **`version`** — new CLI command. Accepts `version`, `--version`, and `-v`.
+  Prints `agentsmd <version>` (from `package.json`); add `--json` for
+  `{ name, version, source }` machine output. Fills a small but obvious v0.1.0
+  gap surfaced while dogfooding on external repos.
+
 ## [0.1.0] — 2026-07-29
 
 First tagged release. `AGENTS.md` is the single source of truth; every other

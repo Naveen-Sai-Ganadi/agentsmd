@@ -4,6 +4,7 @@ import { planSync, applySync, ALL_TARGETS, SyncTarget } from "./sync";
 import { planInit, applyInit } from "./init";
 import { lintAgentsMd, auditAgentsMd, LintSeverity } from "./lint";
 import { runCheck, parseGrade, parseFailOn } from "./check";
+import { readVersion } from "./version";
 
 const HELP = `agentsmd — manage AI-coding-agent config files
 
@@ -24,6 +25,7 @@ Commands:
                          --min-score=N           override numeric floor (0-100)
                          --fail-on=error|warn|info  lint severity to fail on (default error)
                          --json                  machine-readable output
+  version                Print version (also: --version, -v; add --json for machine output)
   help                   Show this help
 `;
 
@@ -72,6 +74,18 @@ function parseArgs(rest: string[]): ParsedArgs {
 async function main(argv: string[]): Promise<number> {
   const [, , cmd = "help", ...rest] = argv;
   switch (cmd) {
+    case "version":
+    case "--version":
+    case "-v": {
+      const { flags } = parseArgs(rest);
+      const info = await readVersion();
+      if (flags.json === true) {
+        console.log(JSON.stringify(info, null, 2));
+      } else {
+        console.log(`${info.name} ${info.version}`);
+      }
+      return 0;
+    }
     case "detect": {
       const root = rest[0] ?? process.cwd();
       const files = await detectConfigs(root);
