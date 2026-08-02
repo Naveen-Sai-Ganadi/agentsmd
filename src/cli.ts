@@ -5,6 +5,7 @@ import { planInit, applyInit } from "./init";
 import { lintAgentsMd, auditAgentsMd, LintSeverity } from "./lint";
 import { runCheck, parseGrade, parseFailOn } from "./check";
 import { readVersion } from "./version";
+import { runDoctor } from "./doctor";
 
 const HELP = `agentsmd — manage AI-coding-agent config files
 
@@ -26,6 +27,8 @@ Commands:
                          --fail-on=error|warn|info  lint severity to fail on (default error)
                          --json                  machine-readable output
   version                Print version (also: --version, -v; add --json for machine output)
+  doctor [path]          Diagnose env + repo (Node version, configs, AGENTS.md staleness).
+                         --json                  machine-readable output
   help                   Show this help
 `;
 
@@ -221,6 +224,38 @@ async function main(argv: string[]): Promise<number> {
         console.log(`  lint: ${errs} error(s), ${warns} warning(s)`);
       }
       return 0;
+    }
+    case "doctor": {
+      const { positional, flags } = parseArgs(rest);
+      const root = positional[0] ?? process.cwd();
+      const report = await runDoctor(root);
+      if (flags.json === true) {
+        console.log(JSON.stringify(report, null, 2));
+      } else {
+        console.log(`doctor — ${report.target}`);
+        console.log(`  agentsmd: ${report.agentsmd.name} ${report.agentsmd.version}`);
+        console.log(`  node:     ${report.node.version} (${report.node.ok ? "ok" : "TOO OLD"}, required ${report.node.required})`);
+        if (report.agentsMd.present) {
+          const age = report.agentsMd.lastModifiedDaysAgo;
+          const ageStr = age === null ? "" : `, modified ${age}d ago`;
+          const banner = report.agentsMd.hasBanner ? ", managed banner ✓" : "";
+          console.log(`  AGENTS.md: ${report.agentsMd.bytes} bytes${ageStr}${banner}`);
+        } else {
+          console.log(`  AGENTS.md: NOT FOUND (run \`agentsmd init --apply\`)`);
+        }
+        const siblings = report.configs.filter((c) => c.kind !== "agents-md");
+        if (siblings.length === 0) {
+          console.log(`  siblings: none`);
+        } else {
+          console.log(`  siblings: ${siblings.map((c) => c.label).join(", ")}`);
+        }
+        console.log(`  checks:`);
+        for (const c of report.checks) {
+          console.log(`    [${c.ok ? " OK  " : "FAIL "}] ${c.name.padEnd(20)} ${c.detail}`);
+        }
+        console.log(`  status: ${report.ok ? "OK ✓" : "ISSUES FOUND ✗"}`);
+      }
+      return report.ok ? 0 : 1;
     }
     case "help":
     case "--help":

@@ -8,7 +8,7 @@ const README = readFileSync(join(ROOT, "README.md"), "utf8");
 const CONTRIB_PATH = join(ROOT, "CONTRIBUTING.md");
 const CLI_SRC = readFileSync(join(ROOT, "src/cli.ts"), "utf8");
 
-const COMMANDS = ["detect", "init", "sync", "lint", "audit", "check"] as const;
+const COMMANDS = ["detect", "init", "sync", "lint", "audit", "check", "doctor"] as const;
 
 test("README references every implemented command", () => {
   for (const cmd of COMMANDS) {

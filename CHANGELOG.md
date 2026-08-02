@@ -10,6 +10,11 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Prints `agentsmd <version>` (from `package.json`); add `--json` for
   `{ name, version, source }` machine output. Fills a small but obvious v0.1.0
   gap surfaced while dogfooding on external repos.
+- **`doctor`** — env + repo diagnostic. Checks Node version (>=22),
+  presence of `AGENTS.md` (with staleness in days + managed-banner flag),
+  and lists detected sibling configs. Exits `1` when any check fails.
+  Add `--json` for machine output. Complements `version` for quick
+  install/setup verification.
 
 ## [0.1.0] — 2026-07-29
 

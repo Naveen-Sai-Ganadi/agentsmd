@@ -58,6 +58,7 @@ Every generated file starts with an `agentsmd:generated` banner, so reviewers ca
 | `agentsmd audit [path]` | Score `AGENTS.md` across 6 dimensions (clarity, coverage, structure, examples, guardrails, freshness) | letter grade |
 | `agentsmd check [path]` | CI gate: `lint` + `audit` with pass/fail exit codes | fails below `C` |
 | `agentsmd version` | Print version (`--version` / `-v` also work; add `--json` for machine output) | text |
+| `agentsmd doctor [path]` | Env + repo diagnostic (Node version, detected configs, AGENTS.md staleness) | exit 1 on issues |
 
 Add `--json` to `lint`, `audit`, or `check` for machine-readable output.
 
