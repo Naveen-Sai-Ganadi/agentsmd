@@ -56,6 +56,10 @@ const VAGUE_PHRASES = [
 const LONG_LINE_LIMIT = 240;
 const MIN_USEFUL_BYTES = 200;
 const MAX_HEALTHY_BYTES = 15_000;
+// Folk-rule from r/ClaudeCode + morphllm 2026 guidance: agent-config files
+// stay skimmable when kept under ~200 lines. Emitted as `info` so it never
+// fails CI by itself, but the `structure` audit dimension penalizes it.
+const LONG_FILE_LINE_BUDGET = 200;
 
 export async function lintAgentsMd(root: string): Promise<LintReport> {
   const target = path.join(root, "AGENTS.md");
@@ -89,6 +93,13 @@ export async function lintAgentsMd(root: string): Promise<LintReport> {
       rule: "too-long",
       severity: "warn",
       message: `AGENTS.md is ${bytes} bytes; consider splitting or trimming (over ${MAX_HEALTHY_BYTES}).`,
+    });
+  }
+  if (lines.length > LONG_FILE_LINE_BUDGET) {
+    issues.push({
+      rule: "long-file",
+      severity: "info",
+      message: `AGENTS.md is ${lines.length} lines; agents skim better under ${LONG_FILE_LINE_BUDGET}. Consider extracting deep-dives into linked docs.`,
     });
   }
 
@@ -249,6 +260,9 @@ export async function auditAgentsMd(root: string): Promise<AuditReport> {
   let structure = Math.min(100, headings * 12);
   if (topLevel === 0) structure = Math.max(0, structure - 20);
   if (topLevel > 3) structure = Math.max(0, structure - 10);
+  const overBudget = Math.max(0, lines.length - LONG_FILE_LINE_BUDGET);
+  const lengthPenalty = Math.min(15, Math.ceil(overBudget / 40) * 5);
+  if (lengthPenalty > 0) structure = Math.max(0, structure - lengthPenalty);
 
   // Length — sweet spot 500–8000 bytes
   let length: number;
@@ -296,7 +310,7 @@ export async function auditAgentsMd(root: string): Promise<AuditReport> {
   const dimensions: DimensionScore[] = [
     { dimension: "completeness", score: completeness, notes: [`${covered}/${REQUIRED_SECTION_HINTS.length} required-section hints matched.`] },
     { dimension: "specificity", score: specificity, notes: [`${bulletCount} bullet(s), ${codeBlocks} code block(s), ${vagueHits} vague phrase(s).`] },
-    { dimension: "structure", score: structure, notes: [`${headings} heading(s); ${topLevel} top-level.`] },
+    { dimension: "structure", score: structure, notes: [`${headings} heading(s); ${topLevel} top-level; ${lines.length} line(s) (budget ${LONG_FILE_LINE_BUDGET}).`] },
     { dimension: "length", score: length, notes: [`${bytes} bytes.`] },
     { dimension: "freshness", score: freshness, notes: freshnessNotes },
     { dimension: "consistency", score: consistency, notes: [`${otherConfigs.length - unsynced}/${otherConfigs.length || 0} sibling configs appear synced.`] },

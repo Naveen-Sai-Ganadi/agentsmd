@@ -15,6 +15,10 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and lists detected sibling configs. Exits `1` when any check fails.
   Add `--json` for machine output. Complements `version` for quick
   install/setup verification.
+- **`long-file` lint rule** — `info`-severity issue when `AGENTS.md`
+  exceeds a 200-line budget (folk-rule from r/ClaudeCode + morphllm 2026
+  field guide). The `structure` audit dimension applies a graduated
+  penalty (up to −15) so oversized configs bleed points before failing CI.
 
 ## [0.1.0] — 2026-07-29
 

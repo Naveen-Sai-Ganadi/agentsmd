@@ -62,6 +62,8 @@ Every generated file starts with an `agentsmd:generated` banner, so reviewers ca
 
 Add `--json` to `lint`, `audit`, or `check` for machine-readable output.
 
+`lint` also emits an `info`-severity **`long-file`** issue when `AGENTS.md` exceeds ~200 lines (the folk-rule size budget popularized on r/ClaudeCode and codified in the 2026 morphllm field guide). The `structure` audit dimension applies a small penalty above the budget, so oversized configs slide from A to B before they get flagged in CI.
+
 ### Flag cheatsheet
 
 ```sh
