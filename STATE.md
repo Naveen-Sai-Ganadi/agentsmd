@@ -1,6 +1,6 @@
 # STATE — agentsmd
 
-Last updated: 2026-08-03 (Phase 3, Day 5 post-v0.1.0 — 200-line `long-file` rule shipped, mono wedge uncontested for a 4th scan)
+Last updated: 2026-08-04 (Phase 3, Day 6 post-v0.1.0 — `tree` command shipped as first vertical slice of monorepo mode; mono wedge uncontested for a 5th consecutive scan)
 
 ## Project
 Universal CLI for AI-coding-agent config files (`AGENTS.md`, `CLAUDE.md`, `.cursorrules`, `.github/copilot-instructions.md`, `.windsurfrules`). Node.js + TypeScript, published to npm.
@@ -13,22 +13,17 @@ Universal CLI for AI-coding-agent config files (`AGENTS.md`, `CLAUDE.md`, `.curs
 - 2026-07-22 — `lint` + `audit` shipped (6-dimension scorecard, 8 tests)
 - 2026-07-26 — `check` CI mode + reusable GitHub Action shipped (roadmap #6)
 - 2026-07-28 — README polish + `CONTRIBUTING.md` + docs-consistency tests (roadmap #7, 35 tests passing)
-- **2026-08-01 — `version` / `--version` / `-v` CLI command shipped** (commit `07f7996`, CI run #7 green in 33s). Reads name+version from nearest `package.json`; `--json` for machine output. 3 new tests (38 passing total). CHANGELOG "Unreleased" entry added. First user-facing change since v0.1.0 tag.
-- **2026-08-03 — `long-file` lint rule + `structure`-dimension penalty shipped** (commit `ce6d5ad`). New `info`-severity issue when `AGENTS.md` exceeds 200 lines (folk-rule from r/ClaudeCode, formalized by Anthropic's own guidance and XDA Developers' 200-line experiment). `audit`'s `structure` dimension now applies a graduated penalty (−5 per 40 lines over budget, capped at −15) so oversized files bleed grade before failing CI. 3 new tests (**46 passing total**), tsc clean. README + CHANGELOG "Unreleased" updated. Distribution draft: `drafts/changelog-long-file-2026-08-03.md`. First lint tool in the market to encode the 200-line rule as a check — `agnix` (now 444 rules), `agentlint.app` (33 checks), and `agents-lint` still do not.
-- **2026-08-02 — `agentsmd doctor` command shipped.** Env + repo diagnostic — Node runtime check (>=22), `AGENTS.md` presence/size/last-modified-days/managed-banner, sibling configs summary, `--json` machine output, exit 1 on any failed check. 5 new tests (**43 passing total**), tsc clean, docs-consistency test extended to require `doctor` in the README + CLI switch. README `## Commands` table + CHANGELOG "Unreleased" both updated. Distribution draft: `drafts/changelog-doctor-2026-08-02.md`. Complements yesterday's `version` — one line to answer "is agentsmd installed and pointed at a real repo?"
-- **2026-07-29 — v0.1.0 TAGGED (roadmap #8, closes Phase 2 MVP)**
-  - `package.json` + `package-lock.json` bumped `0.0.1 → 0.1.0`.
-  - `CHANGELOG.md` created — full Keep-a-Changelog entry for v0.1.0 covering all six commands + Action + docs-test suite + known v0.2 gaps.
-  - Commit `287c957` on `main`. Annotated tag `v0.1.0` pushed to origin.
-  - GitHub Release published: <https://github.com/Naveen-Sai-Ganadi/agentsmd/releases/tag/v0.1.0>
-  - CI run #6 on the release commit: `success` in 37s (35 tests green, lint clean, build clean).
-  - Dogfooded on the tag: `agentsmd check .` → passed=true, grade=B, score=79.
+- 2026-08-01 — `version` / `--version` / `-v` CLI command shipped (commit `07f7996`, CI run #7 green). 3 new tests (38 passing total).
+- 2026-08-02 — `agentsmd doctor` command shipped (commit `acdc61c`). Env + repo diagnostic, `--json`, exit 1 on failure. 5 new tests (43 passing total).
+- 2026-08-03 — `long-file` lint rule + `structure`-dimension penalty shipped (commit `ce6d5ad`). 3 new tests (46 passing total). First lint tool in the market to encode the 200-line rule as a check.
+- **2026-08-04 — `agentsmd tree` command shipped (first vertical slice of monorepo mode).** New `src/tree.ts` module exports `discoverNested()`, `nearestConfig()`, `buildTreeSummary()`, and `renderTree()`. Walks the repo (default max depth 8, `--max-depth=N` override), skips `node_modules`, `dist`, `build`, `out`, `.next`, `.turbo`, `.cache`, `coverage`, `target`, `.venv`, `venv`, `__pycache__`, `.pytest_cache`, `.mypy_cache`, `.gradle`, `.idea`, `.vscode`, and every dot-directory. Text output indents each config by depth; `--json` emits a structured summary. `nearestConfig()` implements nearest-ancestor lookup — the primitive that `lint --nested`, `audit --nested`, `check --nested` will consume next. **6 new tests (52 passing total)**, tsc clean. README `## Commands` table + CHANGELOG "Unreleased" both updated; docs-consistency test extended to require `tree` in the README + CLI switch. Distribution draft: `drafts/changelog-tree-2026-08-04.md`. Research: `drafts/research-2026-08-04.md`. First concrete step on the last uncontested lane (5th-consecutive-scan competitor gap).
+- 2026-07-29 — v0.1.0 TAGGED (roadmap #8, closes Phase 2 MVP). Annotated tag `v0.1.0` on `main` (commit `287c957`). GitHub Release: <https://github.com/Naveen-Sai-Ganadi/agentsmd/releases/tag/v0.1.0>.
 
 ## In progress
 - Still waiting on Naveen's sign-off for **decision #10** (publish v0.1.0 to npm) and **decision #11** (post the launch draft).
-- **Decision #12 (v0.1.1 focus) is now the primary open decision.** 2026-08-02 research confirms the mono wedge is still uncontested by every named competitor (agnix, agentlinter, agent-audit, agents-lint, AgentLint). Recommendation unchanged: `mono`.
-- Doctor + version + the new 200-line `long-file` rule are all on `main` as small dogfood-driven wins; all three roll into the next tagged release (0.1.1) alongside whichever big feature wins decision #12.
-- If "publish now" (decision #10) → single command: `npm publish --access public` (repo already has `prepublishOnly: npm run build` and `files: ["dist", "README.md", "LICENSE"]`). Version stays at `0.1.0` — the last two days' `version` + `doctor` commands land in the CHANGELOG "Unreleased" section and will bump to `0.1.1` when the next real feature ships.
+- **Decision #12 (v0.1.1 focus) is confirmed `mono`** by 5 consecutive competitor scans + two dated 2026 signals of real demand (`agentsmd/agents.md#53`, `anomalyco/opencode#7576`). Today's `tree` command is the first concrete step; `lint --nested` / `check --nested` are the next two loop days.
+- `version`, `doctor`, the 200-line `long-file` rule, and now `tree` are all on `main` as small dogfood-driven wins. All four roll into `0.1.1` alongside `--nested` for `lint` / `audit` / `check`.
+- If "publish now" (decision #10) → single command: `npm publish --access public`. Version stays at `0.1.0` — the four Unreleased items bump to `0.1.1` when `--nested` ships.
 
 ## Blocked
 - (none)
@@ -41,14 +36,14 @@ Universal CLI for AI-coding-agent config files (`AGENTS.md`, `CLAUDE.md`, `.curs
 5. `audit` grade floor for CI mode default (fail below C = 60)? (C / B)
 6. Bump Swift/SwiftUI stack detection into v0.1 (was v0.2) after seeing `twostraws/SwiftAgents` traction? (yes / no) — moot for 0.1.0, keep for 0.1.1
 7. Add `agentsmd drift` (stale-path/dead-script checker, à la `giacomo/agents-lint`) as a v0.2 command? (yes / no)
-8. Action distribution: keep the composite at repo root only, or add a marketplace listing after v0.1.0? (repo / market) — **NOW ACTIONABLE**
+8. Action distribution: keep the composite at repo root only, or add a marketplace listing after v0.1.0? (repo / market)
 9. After v0.1.0, add `agentsmd import --from-agents-dir` to sync from `amtiYo/agents` `.agents/` layout too? (yes / no)
 10. **PRIMARY** — Publish v0.1.0 to npm now, or hold until we have a first external star/issue? (now / hold)
-11. **NEW** — Post the v0.1.0 Show HN draft (`drafts/launch-v0.1.0-2026-07-29.md`) today, or hold until after npm decision? (post / hold)
-12. **NEW** — v0.1.1 focus: monorepo mode (nested AGENTS.md, nearest-wins) or the `drift` command? (mono / drift)
-    → **Recommendation: `mono`.** `agnix` and `agentlinter` both landed lint/rule-count stories this week; monorepo policy-as-code is our uncontested wedge. `drift` overlaps `agnix` more.
-13. **NEW** — Map the six `audit` dimensions 1:1 to GitHub's 2026-07-28 "2,500 repos" rubric in the README? (yes / no) — pure documentation work, ~1 hour, huge trust win.
-14. **NEW** — When v0.1.1 ships, request GitHub Marketplace listing for the reusable Action? Blocks on decision #8 (repo / market) and needs a release image. (yes / no)
+11. Post the v0.1.0 Show HN draft (`drafts/launch-v0.1.0-2026-07-29.md`) today, or hold until after npm decision? (post / hold)
+12. v0.1.1 focus: monorepo mode or the `drift` command? (mono / drift) — **Recommendation held: `mono`.** Today's `tree` ship is the first vertical slice; recommend collapsing this decision to "confirmed" unless Naveen disagrees.
+13. Map the six `audit` dimensions 1:1 to GitHub's 2026-07-28 "2,500 repos" rubric in the README? (yes / no) — pure documentation work, ~1 hour, huge trust win.
+14. When v0.1.1 ships, request GitHub Marketplace listing for the reusable Action? Blocks on decision #8 (repo / market) and needs a release image. (yes / no)
+15. **NEW** — For `lint --nested`, apply lint rules to every discovered `AGENTS.md` (union of issues), or only the nearest ancestor of the changed files in a PR? (all / nearest) — codegateway.dev's 2026 playbook and the `long-file` rule both argue for `all`; the CI-latency argument is thin at monorepo scale we've seen so far.
 
 ## Roadmap
 ### v0.1.0 (2 weeks) — DONE
@@ -62,26 +57,29 @@ Universal CLI for AI-coding-agent config files (`AGENTS.md`, `CLAUDE.md`, `.curs
 8. [x] **Tag v0.1.0 — 2026-07-29 ✓**
 
 ### Unreleased (already on `main`)
-- [x] `version` / `--version` / `-v` CLI command (2026-08-01, commit `07f7996`) — will ship with the next tagged release.
-- [x] `doctor` command (2026-08-02) — env + repo diagnostic, `--json`, exit 1 on failure. Will ship with the next tagged release.
-- [x] `long-file` lint rule + `structure` audit penalty (2026-08-03, commit `ce6d5ad`) — 200-line size budget. Info severity by default; `check --fail-on=info` enforces it.
+- [x] `version` / `--version` / `-v` CLI command (2026-08-01, commit `07f7996`).
+- [x] `doctor` command (2026-08-02, commit `acdc61c`).
+- [x] `long-file` lint rule + `structure` audit penalty (2026-08-03, commit `ce6d5ad`).
+- [x] `tree` command — nested `AGENTS.md` / `CLAUDE.md` discovery + `nearestConfig` primitive (2026-08-04).
 
-### v0.1.1 candidates (pick one, awaiting decision #12 — recommend `mono`)
-- **Monorepo mode:** nested `AGENTS.md` discovery + nearest-wins for `lint`/`audit`/`check`. Driven by amux.io + morphllm + codegateway 2026 guidance that monorepos are the default AGENTS.md deployment shape (OpenAI main repo carries 88 nested AGENTS.md files). **Still uncontested after 2026-08-02 scan.**
-- `agentsmd drift`: stale path + dead script checker. Now overlaps `agnix` more directly after 2026-07-30 release.
-- [x] 200-line size-budget check — **Shipped 2026-08-03** as `long-file` info-rule + `structure`-dimension penalty. Commit `ce6d5ad`.
-- [x] `agentsmd doctor`: env + repo diagnostic (Node version, detected configs, banner presence, staleness). **Shipped 2026-08-02**, now on `main`.
+### v0.1.1 remaining work (targeted for next 2-3 loop days)
+- `lint --nested`: apply every lint rule to every nested `AGENTS.md` discovered by `tree`; aggregate report by relative path. Depends on decision #15 (all / nearest).
+- `audit --nested`: per-file score + a rolled-up monorepo score.
+- `check --nested`: CI gate honors `--nested` and fails when *any* discovered file breaches the gate.
+- **Ship as v0.1.1** once nested `check` lands — bundles the last four Unreleased items.
 
 ### v0.2 candidates
 - Swift/SwiftUI stack detection (decision #6).
 - Aider `.aider.conf.yml` + Continue `.continuerc` sync targets (decision #4).
 - `import --from-agents-dir` for `.agents/` layout (decision #9).
+- `agentsmd drift` (decision #7).
+- Frontmatter presence check (per codegateway.dev's 2026 playbook — progressive-disclosure lookup).
 
 ## Metrics
 - Stars: 0 · Forks: 0 · Watchers: 0 · Open issues: 0 · Open PRs: 0 (unchanged since v0.1.0 — we haven't distributed yet)
-- CI: green (last 8 runs on `main` all `success`; today's `long-file` commit `ce6d5ad` in-progress at time of update — expected green, tsc clean + 46/46 local pass)
+- CI: green (last 8 runs on `main` all `success`; today's `tree` commit will be run #9 — expected green, tsc clean + 52/52 local pass)
 - npm downloads: n/a (unpublished; **decision #10 is the gate**)
-- Local test count: **46 passing**, 0 failing (+3 from today's `long-file` tests)
+- Local test count: **52 passing**, 0 failing (+6 from today's `tree` tests)
 - `agentsmd check .` on this repo (at v0.1.0): passed=true, grade=B, score=79
 - Releases: **1** — `v0.1.0` (2026-07-29)
 
@@ -92,10 +90,11 @@ Universal CLI for AI-coding-agent config files (`AGENTS.md`, `CLAUDE.md`, `.curs
 - 2026-07-22: 5 fresh signals confirming AGENTS.md momentum.
 - 2026-07-26: 5 signals — `giacomo/agents-lint`, AgentLint marketplace action, `agentlinter.com` (hosted SaaS), Build-AGENTS.md-from-Skills action, Claude Code #6235 (5,200+ reactions). Two lint-competitors live.
 - 2026-07-28: 5 signals — `GowayLee/agent-sync`, `amtiYo/agents`, `dallay/agentsync`, Claude Code #6235 at 5,270+ reactions, yurukusa gist. Sync commodifying.
-- **2026-07-29:** 5 signals — `earezki/agent-kit` (yet-another sync tool), `codex.danielvaughan.com` cross-tool portability post, `morphllm.com` spec guide (claims **60,000+ repos carry AGENTS.md** across Codex/Cursor/Copilot/Gemini/Aider/Windsurf/Zed), `amux.io` monorepo guidance (nested nearest-wins is the default), `agentlinter.com` still no CI Action. Full log: `drafts/research-2026-07-29.md`. **Takeaway:** sync side now has ~5 tools and is fully commodified; lint+audit+CI-gate niche is still uncontested. v0.1.0 planted the flag at the right moment.
-- **2026-08-01:** 5 signals — GitHub Blog "lessons from 2,500 AGENTS.md repos" (official rubric now exists), `agent-sh/agnix` (new LSP+lint competitor), `seojoonkim/agentlinter` ("ESLint for AI Agents", 30 rules), Harness.io "Agent-Native Repo" post (enterprise legitimization), `HeadyZhang/agent-audit` (security-flavored CI gate on PyPI). Full log: `drafts/research-2026-08-01.md`. **Takeaway:** the lint/CI-gate lane went from uncontested to actively contested in one week. Our durable wedge narrows to (a) monorepo policy-as-code (favors decision #12 = `mono`) and (b) explicit alignment with the GitHub Blog rubric (decision #13). Positioning draft: `drafts/positioning-vs-competitors-2026-08-01.md`.
-- **2026-08-03:** 5 signals — XDA Developers "200-line CLAUDE.md was the worst decision" article (mainstream press names the threshold), Anthropic's own <200-line guidance surfaced in DEV Community 2026 guide (high-signal band 80–120 lines), GitHub Blog 2,500-repo rubric still canonical, `agnix` jumped from ~30 to **444 rules** in one week while still shipping single-file-only (rule-count arms race), `packmind/context-evaluator` is a new hosted entrant (no CLI + Action combo). Full log: `drafts/research-2026-08-03.md`. **Takeaway:** today's 200-line ship is on-trend with authoritative sources AND community pain. `agnix` compete-on-rule-count is a losing game for us — mono wedge (decision #12) + CI-gate + GitHub-rubric alignment (decision #13) are the durable diffs. Monorepo/nested lane STILL uncontested for a 4th consecutive scan.
-- **2026-08-02:** 5 signals — morphllm AGENTS.md guide (88 nested files in OpenAI's own repo), codegateway "AGENTS.md for Codex CLI: Lookup Order + Monorepo Templates" (explicit nearest-wins spec), Iurii Okhmat "AGENTS.md Field Guide 2026" (no tool in the guide handles nested), `agentlint.app` (33 checks but still single-file / repo-root only), morphllm "Claude Code Reddit" aggregation (200-line CLAUDE.md folk-rule + MCP context-consumption pain). Full log: `drafts/research-2026-08-02.md`. **Takeaway:** monorepo/nested lane is still 100% uncontested — decision #12 = `mono` gets stronger. New candidate for v0.1.1 or v0.2: 200-line size-budget check for the audit `structure`/`freshness` dimension (cheap add, aligns with Reddit folk-rule).
+- 2026-07-29: 5 signals — `earezki/agent-kit`, `codex.danielvaughan.com`, `morphllm.com` (60,000+ repos claim), `amux.io` monorepo guidance, `agentlinter.com` still no CI Action. Full log: `drafts/research-2026-07-29.md`.
+- 2026-08-01: 5 signals — GitHub Blog "lessons from 2,500 AGENTS.md repos", `agent-sh/agnix`, `seojoonkim/agentlinter`, Harness.io "Agent-Native Repo", `HeadyZhang/agent-audit`. Full log: `drafts/research-2026-08-01.md`.
+- 2026-08-02: 5 signals — morphllm 88-nested-files data, codegateway "monorepo templates", "AGENTS.md Field Guide 2026", `agentlint.app` (33 checks / single-file), morphllm Reddit aggregation. Full log: `drafts/research-2026-08-02.md`.
+- 2026-08-03: 5 signals — XDA Developers "200-line CLAUDE.md was the worst decision", Anthropic 200-line guidance, GitHub Blog 2,500-repo rubric, `agnix` jumped to 444 rules (single-file only), `packmind/context-evaluator`. Full log: `drafts/research-2026-08-03.md`.
+- **2026-08-04:** 5 signals — `agentsmd/agents.md#53` (spec-repo user asks about nested nearest-wins), `anomalyco/opencode#7576` (open FR for auto-selection of nested `AGENTS.md`), codegateway.dev 2026 Codex playbook (lookup order + monorepo templates + frontmatter progressive disclosure), `morphllm.com/agents-md-guide` (persistent thought-leader), Cem Karaca Medium (1,207-line CLAUDE.md = ~42k tokens per turn — direct 200-line-rule endorsement). Full log: `drafts/research-2026-08-04.md`. **Takeaway:** monorepo/nested lane still 100% uncontested (5th consecutive scan), and today produced the first two dated 2026 signals of *real user demand* for nearest-wins (not just our inference from OpenAI's 88 nested files). `tree` is the smallest possible bet on that wedge.
 
 ## Distribution drafts (do not post without approval)
 - `drafts/launch-post-hn-2026-07-17.md`
@@ -104,13 +103,14 @@ Universal CLI for AI-coding-agent config files (`AGENTS.md`, `CLAUDE.md`, `.curs
 - `drafts/changelog-lint-audit-2026-07-22.md`
 - `drafts/changelog-check-action-2026-07-26.md`
 - `drafts/changelog-readme-contributing-2026-07-28.md`
-- **`drafts/launch-v0.1.0-2026-07-29.md`** — Show HN post + 140-char reply + short-form changelog announcement, all keyed to the "sync is commodifying, we're the only one that fails your PR" wedge.
-- **`drafts/positioning-vs-competitors-2026-08-01.md`** — NEW: short/medium/long-form positioning against the 2026-08-01 competitor wave (agnix, agentlinter, agent-audit). Leads on CI gate + reusable Action as the durable diff.
-- **`drafts/changelog-doctor-2026-08-02.md`** — short/medium/long-form for the `doctor` command shipped today. Includes v0.1.1 ship checklist.
-- **`drafts/changelog-long-file-2026-08-03.md`** — NEW: short/medium/long-form for the `long-file` 200-line rule shipped today. Positioning: "first lint tool to encode the 200-line rule as a check."
+- `drafts/launch-v0.1.0-2026-07-29.md` — Show HN post + 140-char reply + short-form changelog announcement.
+- `drafts/positioning-vs-competitors-2026-08-01.md` — positioning against agnix / agentlinter / agent-audit wave.
+- `drafts/changelog-doctor-2026-08-02.md` — short/medium/long-form for `doctor`.
+- `drafts/changelog-long-file-2026-08-03.md` — short/medium/long-form for the 200-line rule.
+- **`drafts/changelog-tree-2026-08-04.md`** — NEW: short/medium/long-form for `tree`. Positioning: "first concrete step on monorepo mode — the last uncontested lane."
 
 ## Leads
 See `leads.md`. (Still empty — no external engagement yet.)
 
 ## Security-sensitive
-- (none touched today) — the `long-file` rule is pure line-count arithmetic on an already-read text buffer. No new file reads, no network, no shell exec, no user-supplied input parsed. Safe to ship without a security review.
+- (none touched today) — `tree` performs bounded read-only directory walks (max depth 8 by default, hard-coded ignore list covers `node_modules`, `.git`, dot-dirs, build/cache dirs). No file *contents* are read, no network, no shell exec, no user-supplied input parsed beyond an integer `--max-depth` flag. Safe to ship without a security review. Note: the ignore list is currently non-configurable — flag for future review if a user requests a repo layout that shadows one of our ignored dir names (e.g., a real project package literally named `dist`).

@@ -6,6 +6,7 @@ import { lintAgentsMd, auditAgentsMd, LintSeverity } from "./lint";
 import { runCheck, parseGrade, parseFailOn } from "./check";
 import { readVersion } from "./version";
 import { runDoctor } from "./doctor";
+import { buildTreeSummary, renderTree } from "./tree";
 
 const HELP = `agentsmd — manage AI-coding-agent config files
 
@@ -29,6 +30,9 @@ Commands:
   version                Print version (also: --version, -v; add --json for machine output)
   doctor [path]          Diagnose env + repo (Node version, configs, AGENTS.md staleness).
                          --json                  machine-readable output
+  tree   [path]          Discover nested AGENTS.md / CLAUDE.md (monorepo layout).
+                         --json                  machine-readable output
+                         --max-depth=N           traversal depth (default 8)
   help                   Show this help
 `;
 
@@ -256,6 +260,19 @@ async function main(argv: string[]): Promise<number> {
         console.log(`  status: ${report.ok ? "OK ✓" : "ISSUES FOUND ✗"}`);
       }
       return report.ok ? 0 : 1;
+    }
+    case "tree": {
+      const { positional, flags } = parseArgs(rest);
+      const root = positional[0] ?? process.cwd();
+      const maxDepthRaw = typeof flags["max-depth"] === "string" ? flags["max-depth"] : undefined;
+      const maxDepth = maxDepthRaw ? Number.parseInt(maxDepthRaw, 10) : undefined;
+      const summary = await buildTreeSummary(root, { maxDepth });
+      if (flags.json === true) {
+        console.log(JSON.stringify(summary, null, 2));
+      } else {
+        console.log(renderTree(summary));
+      }
+      return 0;
     }
     case "help":
     case "--help":

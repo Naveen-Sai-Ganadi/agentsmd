@@ -19,6 +19,14 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   exceeds a 200-line budget (folk-rule from r/ClaudeCode + morphllm 2026
   field guide). The `structure` audit dimension applies a graduated
   penalty (up to −15) so oversized configs bleed points before failing CI.
+- **`tree`** — new CLI command. Discovers nested `AGENTS.md` and
+  `CLAUDE.md` files across a monorepo (skips `node_modules`, `dist`,
+  dot-directories, and common build/cache dirs; `--max-depth=N` overrides
+  the default 8-level cap). Text output indents each config by depth;
+  `--json` emits a structured summary (`{ root, configs, totalAgentsMd,
+  totalClaudeMd, maxDepth }`). Ships the discovery + `nearestConfig`
+  primitive that the upcoming nested `lint` / `audit` / `check` will build
+  on (v0.1.1 monorepo mode, STATE.md decision #12 = `mono`).
 
 ## [0.1.0] — 2026-07-29
 
