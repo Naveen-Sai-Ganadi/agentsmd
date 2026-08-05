@@ -2,7 +2,7 @@
 import { detectConfigs, kindLabel } from "./detect";
 import { planSync, applySync, ALL_TARGETS, SyncTarget } from "./sync";
 import { planInit, applyInit } from "./init";
-import { lintAgentsMd, auditAgentsMd, LintSeverity } from "./lint";
+import { lintAgentsMd, lintAgentsMdNested, auditAgentsMd, LintSeverity } from "./lint";
 import { runCheck, parseGrade, parseFailOn } from "./check";
 import { readVersion } from "./version";
 import { runDoctor } from "./doctor";
@@ -21,6 +21,8 @@ Commands:
                          --blank         start blank instead of merging existing rules
                          --force         overwrite an existing AGENTS.md (with --apply)
   lint   [path]          Lint AGENTS.md for quality issues (--json for machine output)
+                         --nested        lint every AGENTS.md discovered in the tree
+                         --max-depth=N   traversal depth for --nested (default 8)
   audit  [path]          Score AGENTS.md across 6 quality dimensions (--json)
   check  [path]          CI gate: lint + audit with pass/fail (for GitHub Actions).
                          --min-grade=A|B|C|D|F   audit floor (default C = 60)
@@ -189,6 +191,34 @@ async function main(argv: string[]): Promise<number> {
     case "lint": {
       const { positional, flags } = parseArgs(rest);
       const root = positional[0] ?? process.cwd();
+      const order: LintSeverity[] = ["error", "warn", "info"];
+      if (flags.nested === true) {
+        const maxDepthRaw = typeof flags["max-depth"] === "string" ? flags["max-depth"] : undefined;
+        const maxDepth = maxDepthRaw ? Number.parseInt(maxDepthRaw, 10) : undefined;
+        const nested = await lintAgentsMdNested(root, { maxDepth });
+        if (flags.json === true) {
+          console.log(JSON.stringify(nested, null, 2));
+        } else {
+          console.log(`lint --nested — ${nested.root}`);
+          console.log(
+            `  files: ${nested.totalFiles}, errors: ${nested.totalErrors}, warnings: ${nested.totalWarnings}, info: ${nested.totalInfos}`,
+          );
+          for (const entry of nested.entries) {
+            const header = entry.exists
+              ? `${entry.relPath} — ${entry.bytes} bytes, ${entry.issues.length} issue(s)`
+              : `${entry.relPath} — MISSING`;
+            console.log(`  ${header}`);
+            for (const sev of order) {
+              for (const iss of entry.issues.filter((i) => i.severity === sev)) {
+                const loc = iss.line ? `:${iss.line}` : "";
+                console.log(`    [${sev.toUpperCase().padEnd(5)}] ${iss.rule}${loc} — ${iss.message}`);
+              }
+            }
+            if (entry.exists && entry.issues.length === 0) console.log(`    no issues ✓`);
+          }
+        }
+        return nested.totalErrors > 0 ? 1 : 0;
+      }
       const report = await lintAgentsMd(root);
       if (flags.json === true) {
         console.log(JSON.stringify(report, null, 2));
@@ -199,7 +229,6 @@ async function main(argv: string[]): Promise<number> {
         } else {
           console.log(`  bytes: ${report.bytes}, issues: ${report.issues.length}`);
         }
-        const order: LintSeverity[] = ["error", "warn", "info"];
         for (const sev of order) {
           for (const iss of report.issues.filter((i) => i.severity === sev)) {
             const loc = iss.line ? `:${iss.line}` : "";

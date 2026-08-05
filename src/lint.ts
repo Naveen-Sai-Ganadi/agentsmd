@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs";
 import * as path from "node:path";
+import { buildTreeSummary } from "./tree.ts";
 type SiblingKind = "claude-md" | "cursorrules" | "copilot-instructions" | "windsurfrules";
 const SIBLING_CONFIGS: { kind: SiblingKind; rel: string }[] = [
   { kind: "claude-md", rel: "CLAUDE.md" },
@@ -318,4 +319,57 @@ export async function auditAgentsMd(root: string): Promise<AuditReport> {
 
   const overall = Math.round(dimensions.reduce((s, d) => s + d.score, 0) / dimensions.length);
   return { target, exists: true, overall, grade: grade(overall), dimensions, lint };
+}
+
+export interface NestedLintEntry extends LintReport {
+  relPath: string;
+  depth: number;
+}
+
+export interface NestedLintReport {
+  root: string;
+  totalFiles: number;
+  totalErrors: number;
+  totalWarnings: number;
+  totalInfos: number;
+  entries: NestedLintEntry[];
+}
+
+export interface NestedLintOptions {
+  maxDepth?: number;
+}
+
+// Nested lint applies every lint rule to every discovered AGENTS.md in the
+// tree (decision #15: `all`). Rationale — the `long-file` rule and the
+// codegateway 2026 monorepo playbook both argue for scoring each nested
+// file independently; CI-latency worries are thin at the monorepo sizes
+// we've seen so far. Falls back to a single-file report at the root when
+// no nested files are discovered, so `lint --nested` on a flat repo still
+// surfaces the familiar `missing-file` error.
+export async function lintAgentsMdNested(
+  root: string,
+  opts: NestedLintOptions = {},
+): Promise<NestedLintReport> {
+  const summary = await buildTreeSummary(root, { maxDepth: opts.maxDepth });
+  const agentsConfigs = summary.configs.filter((c) => c.kind === "agents-md");
+  const entries: NestedLintEntry[] = [];
+  if (agentsConfigs.length === 0) {
+    const single = await lintAgentsMd(root);
+    entries.push({ ...single, relPath: "AGENTS.md", depth: 0 });
+  } else {
+    for (const c of agentsConfigs) {
+      const dir = path.dirname(c.path);
+      const rep = await lintAgentsMd(dir);
+      entries.push({ ...rep, relPath: c.relPath, depth: c.depth });
+    }
+  }
+  const all = entries.flatMap((e) => e.issues);
+  return {
+    root: path.resolve(root),
+    totalFiles: entries.length,
+    totalErrors: all.filter((i) => i.severity === "error").length,
+    totalWarnings: all.filter((i) => i.severity === "warn").length,
+    totalInfos: all.filter((i) => i.severity === "info").length,
+    entries,
+  };
 }

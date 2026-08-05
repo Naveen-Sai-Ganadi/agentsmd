@@ -27,6 +27,14 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   totalClaudeMd, maxDepth }`). Ships the discovery + `nearestConfig`
   primitive that the upcoming nested `lint` / `audit` / `check` will build
   on (v0.1.1 monorepo mode, STATE.md decision #12 = `mono`).
+- **`lint --nested`** — apply the full lint rule set to every `AGENTS.md`
+  discovered by `tree`. Reports per-file issues and a rolled-up totals
+  line (files / errors / warnings / info); exits `1` when *any* nested
+  file surfaces a lint `error`. Add `--max-depth=N` to bound traversal
+  (default 8). Implements decision #15 = `all` (union of issues) —
+  matches the codegateway 2026 monorepo playbook and the `long-file`
+  rule's per-file framing. Second concrete step of monorepo mode;
+  `audit --nested` and `check --nested` are the next two loop days.
 
 ## [0.1.0] — 2026-07-29
 

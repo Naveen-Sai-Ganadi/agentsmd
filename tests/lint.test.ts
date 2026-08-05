@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { promises as fs } from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { lintAgentsMd, auditAgentsMd } from "../src/lint.ts";
+import { lintAgentsMd, lintAgentsMdNested, auditAgentsMd } from "../src/lint.ts";
 
 async function mkTmp(): Promise<string> {
   return await fs.mkdtemp(path.join(os.tmpdir(), "agentsmd-lint-"));
@@ -161,4 +161,49 @@ npm run lint
   assert.ok(dims.length === 100);
   assert.ok(dims.freshness >= 70);
   assert.equal(dims.consistency, 100);
+});
+
+test("lint --nested reports missing-file when the tree has no AGENTS.md", async () => {
+  const dir = await mkTmp();
+  const nested = await lintAgentsMdNested(dir);
+  assert.equal(nested.totalFiles, 1);
+  assert.equal(nested.entries[0].exists, false);
+  assert.equal(nested.totalErrors, 1);
+  assert.equal(nested.entries[0].issues[0].rule, "missing-file");
+});
+
+test("lint --nested applies rules to every discovered AGENTS.md (union of issues)", async () => {
+  const dir = await mkTmp();
+  const goodBody = `# AGENTS.md\n\n## Project\nx\n\n## Stack\nNode\n\n## Commands\n\`\`\`bash\nnpm test\n\`\`\`\n\n## Conventions\n- Rule.\n`;
+  await fs.writeFile(path.join(dir, "AGENTS.md"), goodBody);
+  const pkgDir = path.join(dir, "packages", "web");
+  await fs.mkdir(pkgDir, { recursive: true });
+  await fs.writeFile(path.join(pkgDir, "AGENTS.md"), "write good code");
+
+  const nested = await lintAgentsMdNested(dir);
+  assert.equal(nested.totalFiles, 2);
+  const rels = nested.entries.map((e) => e.relPath).sort();
+  assert.deepEqual(rels, ["AGENTS.md", path.join("packages", "web", "AGENTS.md")]);
+
+  const nestedEntry = nested.entries.find((e) => e.relPath.includes("web"))!;
+  const rules = nestedEntry.issues.map((i) => i.rule);
+  assert.ok(rules.includes("too-short"), "expected too-short on the nested tiny AGENTS.md");
+  assert.ok(rules.includes("no-headings"), "expected no-headings on the nested tiny AGENTS.md");
+
+  const rootEntry = nested.entries.find((e) => e.relPath === "AGENTS.md")!;
+  assert.equal(rootEntry.issues.filter((i) => i.severity === "error").length, 0);
+});
+
+test("lint --nested honors max-depth", async () => {
+  const dir = await mkTmp();
+  const goodBody = `# AGENTS.md\n\n## Project\nx\n\n## Stack\nNode\n\n## Commands\n\`\`\`bash\nnpm test\n\`\`\`\n\n## Conventions\n- Rule.\n`;
+  await fs.writeFile(path.join(dir, "AGENTS.md"), goodBody);
+  const deep = path.join(dir, "a", "b", "c");
+  await fs.mkdir(deep, { recursive: true });
+  await fs.writeFile(path.join(deep, "AGENTS.md"), goodBody);
+
+  const shallow = await lintAgentsMdNested(dir, { maxDepth: 1 });
+  assert.equal(shallow.totalFiles, 1);
+  const full = await lintAgentsMdNested(dir, { maxDepth: 8 });
+  assert.equal(full.totalFiles, 2);
 });
