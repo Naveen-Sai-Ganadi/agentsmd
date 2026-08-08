@@ -2,7 +2,7 @@
 import { detectConfigs, kindLabel } from "./detect";
 import { planSync, applySync, ALL_TARGETS, SyncTarget } from "./sync";
 import { planInit, applyInit } from "./init";
-import { lintAgentsMd, lintAgentsMdNested, auditAgentsMd, LintSeverity } from "./lint";
+import { lintAgentsMd, lintAgentsMdNested, auditAgentsMd, auditAgentsMdNested, LintSeverity } from "./lint";
 import { runCheck, parseGrade, parseFailOn } from "./check";
 import { readVersion } from "./version";
 import { runDoctor } from "./doctor";
@@ -24,6 +24,8 @@ Commands:
                          --nested        lint every AGENTS.md discovered in the tree
                          --max-depth=N   traversal depth for --nested (default 8)
   audit  [path]          Score AGENTS.md across 6 quality dimensions (--json)
+                         --nested        audit every AGENTS.md discovered in the tree
+                         --max-depth=N   traversal depth for --nested (default 8)
   check  [path]          CI gate: lint + audit with pass/fail (for GitHub Actions).
                          --min-grade=A|B|C|D|F   audit floor (default C = 60)
                          --min-score=N           override numeric floor (0-100)
@@ -243,6 +245,34 @@ async function main(argv: string[]): Promise<number> {
     case "audit": {
       const { positional, flags } = parseArgs(rest);
       const root = positional[0] ?? process.cwd();
+      if (flags.nested === true) {
+        const maxDepthRaw = typeof flags["max-depth"] === "string" ? flags["max-depth"] : undefined;
+        const maxDepth = maxDepthRaw ? Number.parseInt(maxDepthRaw, 10) : undefined;
+        const nested = await auditAgentsMdNested(root, { maxDepth });
+        if (flags.json === true) {
+          console.log(JSON.stringify(nested, null, 2));
+        } else {
+          console.log(`audit --nested — ${nested.root}`);
+          console.log(
+            `  files: ${nested.totalFiles}, overall: ${nested.overall}/100 (grade ${nested.grade}), lowest: ${nested.lowest}/100`,
+          );
+          for (const entry of nested.entries) {
+            if (!entry.exists) {
+              console.log(`  ${entry.relPath} — MISSING (F)`);
+              continue;
+            }
+            console.log(
+              `  ${entry.relPath} — ${entry.overall}/100 (grade ${entry.grade})`,
+            );
+            for (const d of entry.dimensions) {
+              console.log(
+                `    - ${d.dimension.padEnd(13)} ${String(d.score).padStart(3)}/100`,
+              );
+            }
+          }
+        }
+        return 0;
+      }
       const report = await auditAgentsMd(root);
       if (flags.json === true) {
         console.log(JSON.stringify(report, null, 2));

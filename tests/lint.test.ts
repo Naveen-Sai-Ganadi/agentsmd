@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { promises as fs } from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { lintAgentsMd, lintAgentsMdNested, auditAgentsMd } from "../src/lint.ts";
+import { lintAgentsMd, lintAgentsMdNested, auditAgentsMd, auditAgentsMdNested } from "../src/lint.ts";
 
 async function mkTmp(): Promise<string> {
   return await fs.mkdtemp(path.join(os.tmpdir(), "agentsmd-lint-"));
@@ -205,5 +205,64 @@ test("lint --nested honors max-depth", async () => {
   const shallow = await lintAgentsMdNested(dir, { maxDepth: 1 });
   assert.equal(shallow.totalFiles, 1);
   const full = await lintAgentsMdNested(dir, { maxDepth: 8 });
+  assert.equal(full.totalFiles, 2);
+});
+
+test("audit --nested returns F when the tree has no AGENTS.md", async () => {
+  const dir = await mkTmp();
+  const nested = await auditAgentsMdNested(dir);
+  assert.equal(nested.totalFiles, 1);
+  assert.equal(nested.entries[0].exists, false);
+  assert.equal(nested.grade, "F");
+  assert.equal(nested.overall, 0);
+  assert.equal(nested.lowest, 0);
+});
+
+test("audit --nested scores each discovered AGENTS.md and rolls up a mean + weakest link", async () => {
+  const dir = await mkTmp();
+  const goodBody = `# AGENTS.md
+
+## Project
+A sample TypeScript library.
+
+## Stack
+Node.js + TypeScript.
+
+## Commands
+\`\`\`bash
+npm test
+npm run lint
+\`\`\`
+
+## Conventions
+- Use conventional commits.
+- Prefer async/await over promises.
+- No default exports.
+`;
+  await fs.writeFile(path.join(dir, "AGENTS.md"), goodBody);
+  const pkgDir = path.join(dir, "packages", "web");
+  await fs.mkdir(pkgDir, { recursive: true });
+  await fs.writeFile(path.join(pkgDir, "AGENTS.md"), "write good code");
+
+  const nested = await auditAgentsMdNested(dir);
+  assert.equal(nested.totalFiles, 2);
+  const rootEntry = nested.entries.find((e) => e.relPath === "AGENTS.md")!;
+  const nestedEntry = nested.entries.find((e) => e.relPath.includes("web"))!;
+  assert.ok(rootEntry.overall > nestedEntry.overall, "root should out-score the tiny nested file");
+  assert.equal(nested.lowest, Math.min(rootEntry.overall, nestedEntry.overall));
+  const expectedOverall = Math.round((rootEntry.overall + nestedEntry.overall) / 2);
+  assert.equal(nested.overall, expectedOverall);
+});
+
+test("audit --nested honors max-depth", async () => {
+  const dir = await mkTmp();
+  await fs.writeFile(path.join(dir, "AGENTS.md"), "# AGENTS.md\n\n## Project\nx\n");
+  const deep = path.join(dir, "a", "b", "c");
+  await fs.mkdir(deep, { recursive: true });
+  await fs.writeFile(path.join(deep, "AGENTS.md"), "# AGENTS.md\n\n## Project\ny\n");
+
+  const shallow = await auditAgentsMdNested(dir, { maxDepth: 1 });
+  assert.equal(shallow.totalFiles, 1);
+  const full = await auditAgentsMdNested(dir, { maxDepth: 8 });
   assert.equal(full.totalFiles, 2);
 });

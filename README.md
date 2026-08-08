@@ -65,6 +65,8 @@ Add `--json` to `lint`, `audit`, or `check` for machine-readable output.
 
 `lint` also supports `--nested`, which discovers every `AGENTS.md` in the tree (via the same walker as `agentsmd tree`) and runs the full rule set against each. Every discovered file contributes to the union of issues; the command exits `1` when *any* nested file surfaces a lint `error`. Use `--max-depth=N` to bound traversal (default `8`). First concrete step of monorepo mode — pairs with `tree` and the upcoming `audit --nested` / `check --nested`.
 
+`audit` also supports `--nested`, which scores every discovered `AGENTS.md` on the same six dimensions and rolls up two monorepo-level numbers: `overall` (mean of per-file overall scores — the typical-health signal) and `lowest` (worst per-file score — the weakest-link signal for CI gates that care about the sickest package). `--max-depth=N` bounds traversal (default `8`); `--json` emits the full structured report.
+
 `lint` also emits an `info`-severity **`long-file`** issue when `AGENTS.md` exceeds ~200 lines (the folk-rule size budget popularized on r/ClaudeCode and codified in the 2026 morphllm field guide). The `structure` audit dimension applies a small penalty above the budget, so oversized configs slide from A to B before they get flagged in CI.
 
 ### Flag cheatsheet

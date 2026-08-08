@@ -1,11 +1,12 @@
 # STATE — agentsmd
 
-Last updated: 2026-08-05 (Phase 3, Day 7 post-v0.1.0 — `lint --nested` shipped, second vertical slice of monorepo mode; nested lint/CI lane still uncontested on the 6th consecutive scan, and 3 fresh 2026 signals show the nested-AGENTS.md conversation moving from "spec-repo curiosity" to "shipped agent CLIs being asked to fix this now")
+Last updated: 2026-08-08 (Phase 3, Day 10 post-v0.1.0 — `audit --nested` shipped, third vertical slice of monorepo mode; per-package `overall` + weakest-link `lowest` roll-up now lands. Nested audit lane still uncontested on the 7th consecutive scan — three of today's five fresh signals are open FRs on Claude Code itself asking for exactly the primitive we've built.)
 
 ## Project
 Universal CLI for AI-coding-agent config files (`AGENTS.md`, `CLAUDE.md`, `.cursorrules`, `.github/copilot-instructions.md`, `.windsurfrules`). Node.js + TypeScript, published to npm.
 
 ## Done
+- **2026-08-08 — `agentsmd audit --nested` shipped (third vertical slice of monorepo mode).** New `auditAgentsMdNested()` in `src/lint.ts` discovers every `AGENTS.md` via `buildTreeSummary()`, runs the full 6-dimension scorecard on each, and rolls up two monorepo-level numbers: `overall` (mean of per-file overall scores — typical health) and `lowest` (worst per-file score — weakest link, useful for CI gates that care about the sickest package). Per-file output shows every dimension; `--json` returns the full structured report; `--max-depth=N` bounds traversal. Falls back to a single-file audit at the root when nothing nested is discovered. **3 new tests (58 passing total)**, tsc clean, dogfood on this repo returns `1 file / 79 overall / 79 lowest (grade B)`. README `audit` prose + CHANGELOG "Unreleased" both updated; help text lists `--nested` + `--max-depth`. Distribution draft: `drafts/changelog-audit-nested-2026-08-08.md`. Research: `drafts/research-2026-08-08.md`. **Positioning:** third of four vertical slices — only `check --nested` remains before v0.1.1 ships. Nested audit lane still 100% uncontested; `giacomo/agents-lint` (closest competitor) is still single-file only.
 - Phase 1 research + proposals (2026-07-14)
 - Phase 2 kick-off — repo scaffolded (2026-07-17)
 - 2026-07-20 — `sync` command shipped (dry-run default, banner, 6 tests)
@@ -22,9 +23,9 @@ Universal CLI for AI-coding-agent config files (`AGENTS.md`, `CLAUDE.md`, `.curs
 
 ## In progress
 - Still waiting on Naveen's sign-off for **decision #10** (publish v0.1.0 to npm) and **decision #11** (post the launch draft).
-- **Decision #12 (v0.1.1 focus) is confirmed `mono`** — now 6 consecutive uncontested scans + three dated 2026 asks for union semantics (`agentsmd/agents.md#53`, `anomalyco/opencode#7576`, `github/copilot-cli#1655`). Today's `lint --nested` closes the second of three vertical slices. Remaining: `audit --nested` (tomorrow), `check --nested` (day after) → cut `v0.1.1`.
-- `version`, `doctor`, the 200-line `long-file` rule, `tree`, and now `lint --nested` are all on `main` as small dogfood-driven wins. All five roll into `0.1.1` alongside `audit --nested` + `check --nested`.
-- If "publish now" (decision #10) → single command: `npm publish --access public`. Version stays at `0.1.0` — the Unreleased items bump to `0.1.1` when the last two `--nested` slices ship.
+- **Decision #12 (v0.1.1 focus) confirmed `mono`** — 7 consecutive uncontested scans. Today's `audit --nested` closes the third of four vertical slices. Only `check --nested` remains before cutting `v0.1.1`.
+- `version`, `doctor`, the 200-line `long-file` rule, `tree`, `lint --nested`, and now `audit --nested` are all on `main` as small dogfood-driven wins. All six roll into `0.1.1` alongside `check --nested`.
+- If "publish now" (decision #10) → single command: `npm publish --access public`. Version stays at `0.1.0` — the Unreleased items bump to `0.1.1` when nested `check` ships.
 
 ## Blocked
 - (none)
@@ -63,11 +64,11 @@ Universal CLI for AI-coding-agent config files (`AGENTS.md`, `CLAUDE.md`, `.curs
 - [x] `long-file` lint rule + `structure` audit penalty (2026-08-03, commit `ce6d5ad`).
 - [x] `tree` command — nested `AGENTS.md` / `CLAUDE.md` discovery + `nearestConfig` primitive (2026-08-04).
 - [x] `lint --nested` — full rule set applied to every discovered `AGENTS.md`, union of issues, per-file + rollup output, one CI exit code (2026-08-05).
+- [x] `audit --nested` — 6-dimension scorecard per discovered `AGENTS.md`, rolled-up `overall` (mean) + `lowest` (weakest link), `--json` + `--max-depth` (2026-08-08).
 
-### v0.1.1 remaining work (targeted for next 2 loop days)
-- `audit --nested`: per-file score + a rolled-up monorepo score.
-- `check --nested`: CI gate honors `--nested` and fails when *any* discovered file breaches the gate.
-- **Ship as v0.1.1** once nested `check` lands — bundles all five Unreleased items.
+### v0.1.1 remaining work (targeted for next loop day)
+- `check --nested`: CI gate honors `--nested` and fails when *any* discovered file breaches the gate (lint errors or audit floor).
+- **Ship as v0.1.1** once nested `check` lands — bundles all six Unreleased items.
 
 ### v0.2 candidates
 - Swift/SwiftUI stack detection (decision #6).
@@ -78,9 +79,9 @@ Universal CLI for AI-coding-agent config files (`AGENTS.md`, `CLAUDE.md`, `.curs
 
 ## Metrics
 - Stars: 0 · Forks: 0 · Watchers: 0 · Open issues: 0 · Open PRs: 0 (unchanged since v0.1.0 — we haven't distributed yet)
-- CI: green (last 9 runs on `main` all `success`; today's `lint --nested` commit will be run #10 — expected green, tsc clean + 55/55 local pass)
+- CI: green (all runs on `main` `success`; today's `audit --nested` commit expected green, tsc clean + 58/58 local pass)
 - npm downloads: n/a (unpublished; **decision #10 is the gate**)
-- Local test count: **55 passing**, 0 failing (+3 from today's nested-lint tests)
+- Local test count: **58 passing**, 0 failing (+3 from today's nested-audit tests)
 - `agentsmd check .` on this repo (at v0.1.0): passed=true, grade=B, score=79
 - Releases: **1** — `v0.1.0` (2026-07-29)
 
@@ -96,6 +97,7 @@ Universal CLI for AI-coding-agent config files (`AGENTS.md`, `CLAUDE.md`, `.curs
 - 2026-08-02: 5 signals — morphllm 88-nested-files data, codegateway "monorepo templates", "AGENTS.md Field Guide 2026", `agentlint.app` (33 checks / single-file), morphllm Reddit aggregation. Full log: `drafts/research-2026-08-02.md`.
 - 2026-08-03: 5 signals — XDA Developers "200-line CLAUDE.md was the worst decision", Anthropic 200-line guidance, GitHub Blog 2,500-repo rubric, `agnix` jumped to 444 rules (single-file only), `packmind/context-evaluator`. Full log: `drafts/research-2026-08-03.md`.
 - **2026-08-04:** 5 signals — `agentsmd/agents.md#53` (spec-repo user asks about nested nearest-wins), `anomalyco/opencode#7576` (open FR for auto-selection of nested `AGENTS.md`), codegateway.dev 2026 Codex playbook (lookup order + monorepo templates + frontmatter progressive disclosure), `morphllm.com/agents-md-guide` (persistent thought-leader), Cem Karaca Medium (1,207-line CLAUDE.md = ~42k tokens per turn — direct 200-line-rule endorsement). Full log: `drafts/research-2026-08-04.md`. **Takeaway:** monorepo/nested lane still 100% uncontested (5th consecutive scan), and today produced the first two dated 2026 signals of *real user demand* for nearest-wins (not just our inference from OpenAI's 88 nested files). `tree` is the smallest possible bet on that wedge.
+- **2026-08-08:** 5 signals — `anthropics/claude-code#37344` (hierarchical `.claude` config discovery in monorepos — open FR), `anthropics/claude-code#27901` (`claude --worktree` picks wrong `CLAUDE.md` in monorepos), `anthropics/claude-code#20880` (opt-out for parent-`CLAUDE.md` auto-loading — per-package scoping semantics), Cursor forum thread on rules blowing past context limits in monorepos (real dollar-cost pain — direct weakest-link pitch), `giacomo/agents-lint` (closest active competitor, still single-file only — nested lane 7th-consecutive-scan uncontested). Full log: `drafts/research-2026-08-08.md`. **Takeaway:** three of five signals come from Claude Code itself asking for exactly the primitive `--nested` implements; the Cursor cost thread is our best "why weakest-link matters" quote for the v0.1.1 launch.
 - **2026-08-05:** 5 signals — `github/copilot-cli#1655` (FR asking Copilot CLI to include *all* AGENTS.md along the hierarchy — direct evidence for decision #15 = `all`), `zed-industries/zed#53332` (Zed users asking for nested subdirectory AGENTS.md), `microsoft/vscode#271489` (Copilot in VS Code ignores nested AGENTS.md — bug report), `openai/codex#12115` (dynamic loading of nested AGENTS.md), `code-yeongyu/pi-nested-agents-md` (**first shipped nested-AGENTS.md tool found in the wild** — but it's a runtime injector for pi-mono, not a linter/CI gate). Full log: `drafts/research-2026-08-05.md`. **Takeaway:** the lint + CI lane is still 100% uncontested (6th consecutive scan), and the conversation moved from "spec-repo curiosity" to "shipped agent CLIs being asked to fix this now" — fastest tailwind we've had for the `--nested` family. Positioning update: `agentsmd` is the *tool-agnostic, CI-facing* nested-AGENTS.md tool.
 
 ## Distribution drafts (do not post without approval)
@@ -110,11 +112,13 @@ Universal CLI for AI-coding-agent config files (`AGENTS.md`, `CLAUDE.md`, `.curs
 - `drafts/changelog-doctor-2026-08-02.md` — short/medium/long-form for `doctor`.
 - `drafts/changelog-long-file-2026-08-03.md` — short/medium/long-form for the 200-line rule.
 - `drafts/changelog-tree-2026-08-04.md` — short/medium/long-form for `tree`. Positioning: "first concrete step on monorepo mode — the last uncontested lane."
-- **`drafts/changelog-lint-nested-2026-08-05.md`** — NEW: short/medium/long-form for `lint --nested`. Positioning: "You have 12 CLAUDE.md files. Which one just failed CI?" Backed by three dated 2026 user asks for union semantics.
+- `drafts/changelog-lint-nested-2026-08-05.md` — short/medium/long-form for `lint --nested`. Positioning: "You have 12 CLAUDE.md files. Which one just failed CI?" Backed by three dated 2026 user asks for union semantics.
+- **`drafts/changelog-audit-nested-2026-08-08.md`** — NEW: short/medium/long-form for `audit --nested`. Positioning: "typical health vs. weakest link — one command scores every AGENTS.md and rolls up the two numbers a CI gate actually needs." Long-form is reserved for the v0.1.1 launch reply.
 
 ## Leads
 See `leads.md`. (Still empty — no external engagement yet.)
 
 ## Security-sensitive
-- (none touched today) — `lint --nested` re-uses the existing `buildTreeSummary()` walker (bounded, read-only, hard-coded ignore list) and runs the same `lintAgentsMd()` per discovered file. No new I/O surface, no network, no shell exec, no user-supplied paths beyond the CLI arg and integer `--max-depth`. Safe to ship without a security review.
+- (none touched today) — `audit --nested` re-uses the existing `buildTreeSummary()` walker (bounded, read-only, hard-coded ignore list) and runs `auditAgentsMd()` per discovered file. Audit only reads `AGENTS.md` + sibling configs + `package.json`; no network, no shell exec, no user-supplied paths beyond the CLI arg and integer `--max-depth`. Safe to ship without a security review.
+- (prior) — `lint --nested` re-uses the existing `buildTreeSummary()` walker (bounded, read-only, hard-coded ignore list) and runs the same `lintAgentsMd()` per discovered file. No new I/O surface, no network, no shell exec, no user-supplied paths beyond the CLI arg and integer `--max-depth`. Safe to ship without a security review.
 - (prior) — `tree` performs bounded read-only directory walks (max depth 8 by default, hard-coded ignore list covers `node_modules`, `.git`, dot-dirs, build/cache dirs). No file *contents* are read, no network, no shell exec, no user-supplied input parsed beyond an integer `--max-depth` flag. Safe to ship without a security review. Note: the ignore list is currently non-configurable — flag for future review if a user requests a repo layout that shadows one of our ignored dir names (e.g., a real project package literally named `dist`).

@@ -373,3 +373,58 @@ export async function lintAgentsMdNested(
     entries,
   };
 }
+
+export interface NestedAuditEntry extends AuditReport {
+  relPath: string;
+  depth: number;
+}
+
+export interface NestedAuditReport {
+  root: string;
+  totalFiles: number;
+  overall: number; // rolled-up monorepo score (mean of per-file overall)
+  grade: AuditReport["grade"];
+  lowest: number; // worst per-file score (weakest link)
+  entries: NestedAuditEntry[];
+}
+
+export interface NestedAuditOptions {
+  maxDepth?: number;
+}
+
+// Nested audit runs the 6-dimension scorecard against every discovered
+// AGENTS.md in the tree, then rolls up a monorepo-level score. Two
+// summary numbers are surfaced: `overall` = mean of per-file overall
+// scores (typical health), `lowest` = worst per-file score (weakest
+// link, useful for CI gates that care about the sickest package).
+// Falls back to a single-file audit at the root when no nested files
+// are discovered, so `audit --nested` on a flat repo still returns
+// the familiar missing-file F grade.
+export async function auditAgentsMdNested(
+  root: string,
+  opts: NestedAuditOptions = {},
+): Promise<NestedAuditReport> {
+  const summary = await buildTreeSummary(root, { maxDepth: opts.maxDepth });
+  const agentsConfigs = summary.configs.filter((c) => c.kind === "agents-md");
+  const entries: NestedAuditEntry[] = [];
+  if (agentsConfigs.length === 0) {
+    const single = await auditAgentsMd(root);
+    entries.push({ ...single, relPath: "AGENTS.md", depth: 0 });
+  } else {
+    for (const c of agentsConfigs) {
+      const dir = path.dirname(c.path);
+      const rep = await auditAgentsMd(dir);
+      entries.push({ ...rep, relPath: c.relPath, depth: c.depth });
+    }
+  }
+  const overall = Math.round(entries.reduce((s, e) => s + e.overall, 0) / entries.length);
+  const lowest = entries.reduce((m, e) => Math.min(m, e.overall), 100);
+  return {
+    root: path.resolve(root),
+    totalFiles: entries.length,
+    overall,
+    grade: grade(overall),
+    lowest,
+    entries,
+  };
+}

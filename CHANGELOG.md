@@ -35,6 +35,15 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   matches the codegateway 2026 monorepo playbook and the `long-file`
   rule's per-file framing. Second concrete step of monorepo mode;
   `audit --nested` and `check --nested` are the next two loop days.
+- **`audit --nested`** — run the 6-dimension scorecard against every
+  `AGENTS.md` discovered by `tree`, then roll up two monorepo-level
+  numbers: `overall` (mean of per-file overall scores — typical health)
+  and `lowest` (worst per-file score — weakest link, useful for CI gates
+  that care about the sickest package). Per-file output shows each
+  dimension score; `--json` returns the full structured report. Add
+  `--max-depth=N` to bound traversal (default 8). Third vertical slice
+  of monorepo mode — `check --nested` is the last remaining piece
+  before v0.1.1 ships.
 
 ## [0.1.0] — 2026-07-29
 
