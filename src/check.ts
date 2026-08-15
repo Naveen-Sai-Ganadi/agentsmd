@@ -1,5 +1,12 @@
-import { lintAgentsMd, auditAgentsMd } from "./lint.ts";
-import type { LintReport, AuditReport, LintSeverity } from "./lint.ts";
+import { lintAgentsMd, auditAgentsMd, lintAgentsMdNested, auditAgentsMdNested } from "./lint.ts";
+import type {
+  LintReport,
+  AuditReport,
+  LintSeverity,
+  NestedLintReport,
+  NestedAuditReport,
+} from "./lint.ts";
+import * as path from "node:path";
 
 export type Grade = "A" | "B" | "C" | "D" | "F";
 
@@ -72,6 +79,118 @@ export async function runCheck(root: string, opts: CheckOptions = {}): Promise<C
   const lint = await lintAgentsMd(root);
   const audit = await auditAgentsMd(root);
   return evaluateCheck(lint, audit, opts);
+}
+
+export interface NestedCheckEntry {
+  relPath: string;
+  depth: number;
+  passed: boolean;
+  reasons: string[];
+  lintErrors: number;
+  lintWarnings: number;
+  lintInfos: number;
+  audit: number;
+  grade: AuditReport["grade"];
+  exists: boolean;
+}
+
+export interface NestedCheckResult {
+  root: string;
+  totalFiles: number;
+  passed: boolean;
+  passedFiles: number;
+  failedFiles: number;
+  gate: {
+    minGrade: Grade;
+    minScore: number;
+    failOn: LintSeverity;
+  };
+  rollup: {
+    overall: number; // mean per-file audit
+    lowest: number; // weakest link
+    grade: AuditReport["grade"];
+    totalErrors: number;
+    totalWarnings: number;
+    totalInfos: number;
+  };
+  entries: NestedCheckEntry[];
+}
+
+export interface NestedCheckOptions extends CheckOptions {
+  maxDepth?: number;
+}
+
+// Nested check runs the CI gate against every AGENTS.md discovered in
+// the tree. A monorepo fails when *any* nested file breaches the gate —
+// weakest-link semantics that match the `lowest` roll-up from
+// `audit --nested`. This closes the fourth vertical slice of monorepo
+// mode; alongside `tree`, `lint --nested`, and `audit --nested`, it
+// makes `agentsmd` the first tool-agnostic, CI-facing nested-AGENTS.md
+// gate we've seen in the wild.
+export async function runCheckNested(
+  root: string,
+  opts: NestedCheckOptions = {},
+): Promise<NestedCheckResult> {
+  const minGrade: Grade = opts.minGrade ?? "C";
+  const explicitScore = typeof opts.minScore === "number";
+  const minScore = explicitScore ? (opts.minScore as number) : GRADE_FLOOR[minGrade];
+  const failOn: LintSeverity = opts.failOn ?? "error";
+
+  const [lintNested, auditNested]: [NestedLintReport, NestedAuditReport] = await Promise.all([
+    lintAgentsMdNested(root, { maxDepth: opts.maxDepth }),
+    auditAgentsMdNested(root, { maxDepth: opts.maxDepth }),
+  ]);
+
+  const auditByRel = new Map(auditNested.entries.map((e) => [e.relPath, e]));
+
+  const entries: NestedCheckEntry[] = lintNested.entries.map((lintEntry) => {
+    const auditEntry = auditByRel.get(lintEntry.relPath);
+    const audit: AuditReport = auditEntry ?? {
+      target: lintEntry.target,
+      exists: lintEntry.exists,
+      overall: 0,
+      grade: "F" as const,
+      dimensions: [],
+      lint: lintEntry,
+    };
+    const result = evaluateCheck(lintEntry, audit, { minGrade, minScore, failOn });
+    const errs = lintEntry.issues.filter((i) => i.severity === "error").length;
+    const warns = lintEntry.issues.filter((i) => i.severity === "warn").length;
+    const infos = lintEntry.issues.filter((i) => i.severity === "info").length;
+    return {
+      relPath: lintEntry.relPath,
+      depth: lintEntry.depth,
+      passed: result.passed,
+      reasons: result.reasons,
+      lintErrors: errs,
+      lintWarnings: warns,
+      lintInfos: infos,
+      audit: audit.overall,
+      grade: audit.grade,
+      exists: lintEntry.exists,
+    };
+  });
+
+  const failedFiles = entries.filter((e) => !e.passed).length;
+  const passedFiles = entries.length - failedFiles;
+
+  return {
+    root: path.resolve(root),
+    totalFiles: entries.length,
+    passed: failedFiles === 0,
+    passedFiles,
+    failedFiles,
+    gate: { minGrade, minScore, failOn },
+    rollup: {
+      overall: auditNested.overall,
+      lowest: auditNested.lowest,
+      grade: auditNested.grade,
+      totalErrors: lintNested.totalErrors,
+      totalWarnings: lintNested.totalWarnings,
+      totalInfos: lintNested.totalInfos,
+    },
+    entries,
+  };
 }
 
 export function parseGrade(raw: string | undefined): Grade | undefined {

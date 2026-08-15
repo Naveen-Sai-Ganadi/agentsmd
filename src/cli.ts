@@ -3,7 +3,7 @@ import { detectConfigs, kindLabel } from "./detect";
 import { planSync, applySync, ALL_TARGETS, SyncTarget } from "./sync";
 import { planInit, applyInit } from "./init";
 import { lintAgentsMd, lintAgentsMdNested, auditAgentsMd, auditAgentsMdNested, LintSeverity } from "./lint";
-import { runCheck, parseGrade, parseFailOn } from "./check";
+import { runCheck, runCheckNested, parseGrade, parseFailOn } from "./check";
 import { readVersion } from "./version";
 import { runDoctor } from "./doctor";
 import { buildTreeSummary, renderTree } from "./tree";
@@ -30,6 +30,8 @@ Commands:
                          --min-grade=A|B|C|D|F   audit floor (default C = 60)
                          --min-score=N           override numeric floor (0-100)
                          --fail-on=error|warn|info  lint severity to fail on (default error)
+                         --nested        run the gate against every AGENTS.md in the tree
+                         --max-depth=N   traversal depth for --nested (default 8)
                          --json                  machine-readable output
   version                Print version (also: --version, -v; add --json for machine output)
   doctor [path]          Diagnose env + repo (Node version, configs, AGENTS.md staleness).
@@ -115,6 +117,35 @@ async function main(argv: string[]): Promise<number> {
       const minScore =
         typeof flags["min-score"] === "string" ? Number.parseInt(flags["min-score"], 10) : undefined;
       const failOn = parseFailOn(typeof flags["fail-on"] === "string" ? flags["fail-on"] : undefined);
+      if (flags.nested === true) {
+        const maxDepthRaw = typeof flags["max-depth"] === "string" ? flags["max-depth"] : undefined;
+        const maxDepth = maxDepthRaw ? Number.parseInt(maxDepthRaw, 10) : undefined;
+        const nested = await runCheckNested(root, { minGrade, minScore, failOn, maxDepth });
+        if (flags.json === true) {
+          console.log(JSON.stringify(nested, null, 2));
+        } else {
+          console.log(`check --nested — ${nested.root}`);
+          console.log(
+            `  gate: min-grade=${nested.gate.minGrade} (>=${nested.gate.minScore}), fail-on=${nested.gate.failOn}`,
+          );
+          console.log(
+            `  files: ${nested.totalFiles}, passed: ${nested.passedFiles}, failed: ${nested.failedFiles}`,
+          );
+          console.log(
+            `  rollup: overall ${nested.rollup.overall}/100 (grade ${nested.rollup.grade}), lowest ${nested.rollup.lowest}/100, lint ${nested.rollup.totalErrors}e/${nested.rollup.totalWarnings}w/${nested.rollup.totalInfos}i`,
+          );
+          for (const entry of nested.entries) {
+            const status = entry.passed ? "PASS ✓" : "FAIL ✗";
+            const existsTag = entry.exists ? "" : " (missing)";
+            console.log(
+              `  [${status}] ${entry.relPath}${existsTag} — audit ${entry.audit}/100 (${entry.grade}), lint ${entry.lintErrors}e/${entry.lintWarnings}w/${entry.lintInfos}i`,
+            );
+            for (const r of entry.reasons) console.log(`      - ${r}`);
+          }
+          console.log(`  status: ${nested.passed ? "PASS ✓" : "FAIL ✗"}`);
+        }
+        return nested.passed ? 0 : 1;
+      }
       const result = await runCheck(root, { minGrade, minScore, failOn });
       if (flags.json === true) {
         console.log(JSON.stringify(result, null, 2));

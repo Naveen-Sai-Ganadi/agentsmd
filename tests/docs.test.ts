@@ -38,6 +38,20 @@ test("README GitHub Action snippet matches action.yml inputs", () => {
   }
 });
 
+test("README documents every --nested variant we ship", () => {
+  for (const cmd of ["lint", "audit", "check"]) {
+    assert.match(
+      README,
+      new RegExp(`\`${cmd}\`[\\s\\S]{0,400}\`--nested\``),
+      `README missing '--nested' prose for '${cmd}'`,
+    );
+  }
+});
+
+test("cli help lists --nested for check", () => {
+  assert.match(CLI_SRC, /check[\s\S]*--nested[\s\S]*max-depth/, "cli.ts help block missing check --nested docs");
+});
+
 test("README does not reference removed/renamed commands", () => {
   // Old `check` (config-file detector) was renamed to `detect` in v0.0.4.
   // Guard against future accidental reintroduction of stale flag names.

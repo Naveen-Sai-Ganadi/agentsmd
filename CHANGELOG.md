@@ -44,6 +44,16 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `--max-depth=N` to bound traversal (default 8). Third vertical slice
   of monorepo mode — `check --nested` is the last remaining piece
   before v0.1.1 ships.
+- **`check --nested`** — run the CI gate against every `AGENTS.md`
+  discovered by `tree`. Weakest-link semantics: the monorepo fails when
+  *any* nested file breaches the gate (lint errors at/above `--fail-on`
+  or an audit score below the `--min-grade` / `--min-score` floor).
+  Per-file `PASS ✓` / `FAIL ✗` lines call out the exact package to fix;
+  a rolled-up line surfaces the same `overall` / `lowest` numbers as
+  `audit --nested` plus aggregate lint counts. `--max-depth=N` bounds
+  traversal (default 8); `--json` returns the full structured report.
+  Fourth and final vertical slice of monorepo mode — closes the last
+  piece of v0.1.1.
 
 ## [0.1.0] — 2026-07-29
 
