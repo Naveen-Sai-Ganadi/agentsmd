@@ -57,6 +57,44 @@ const VAGUE_PHRASES = [
 const LONG_LINE_LIMIT = 240;
 const MIN_USEFUL_BYTES = 200;
 const MAX_HEALTHY_BYTES = 15_000;
+// Frontmatter enables progressive disclosure: agents (and humans) can peek at
+// the metadata block without loading the full file. Popularized by
+// codegateway.dev's 2026 Codex playbook and echoed by the morphllm field
+// guide. We look for a leading YAML-style `---` fence at line 1, a closing
+// `---` within the first ~30 lines, and at least one recognized key.
+const FRONTMATTER_RECOMMENDED_KEYS = ["title", "description", "updated", "owner", "version"];
+const FRONTMATTER_MAX_LINES = 30;
+
+interface FrontmatterProbe {
+  present: boolean;
+  malformed: boolean;
+  recognizedKeys: string[];
+  endLine: number; // 0 when absent
+}
+
+function probeFrontmatter(text: string): FrontmatterProbe {
+  const lines = text.split("\n");
+  if (lines[0]?.trim() !== "---") {
+    return { present: false, malformed: false, recognizedKeys: [], endLine: 0 };
+  }
+  const limit = Math.min(lines.length, FRONTMATTER_MAX_LINES + 1);
+  let closeIdx = -1;
+  for (let i = 1; i < limit; i++) {
+    if (lines[i].trim() === "---") { closeIdx = i; break; }
+  }
+  if (closeIdx === -1) {
+    return { present: false, malformed: true, recognizedKeys: [], endLine: 0 };
+  }
+  const body = lines.slice(1, closeIdx);
+  const recognized: string[] = [];
+  for (const raw of body) {
+    const m = raw.match(/^\s*([A-Za-z][A-Za-z0-9_-]*)\s*:/);
+    if (m && FRONTMATTER_RECOMMENDED_KEYS.includes(m[1].toLowerCase())) {
+      recognized.push(m[1].toLowerCase());
+    }
+  }
+  return { present: true, malformed: false, recognizedKeys: recognized, endLine: closeIdx + 1 };
+}
 // Folk-rule from r/ClaudeCode + morphllm 2026 guidance: agent-config files
 // stay skimmable when kept under ~200 lines. Emitted as `info` so it never
 // fails CI by itself, but the `structure` audit dimension penalizes it.
@@ -101,6 +139,29 @@ export async function lintAgentsMd(root: string): Promise<LintReport> {
       rule: "long-file",
       severity: "info",
       message: `AGENTS.md is ${lines.length} lines; agents skim better under ${LONG_FILE_LINE_BUDGET}. Consider extracting deep-dives into linked docs.`,
+    });
+  }
+
+  const fm = probeFrontmatter(text);
+  if (fm.malformed) {
+    issues.push({
+      rule: "invalid-frontmatter",
+      severity: "warn",
+      message: `AGENTS.md opens with a \`---\` fence but never closes it within the first ${FRONTMATTER_MAX_LINES} lines.`,
+      line: 1,
+    });
+  } else if (!fm.present) {
+    issues.push({
+      rule: "missing-frontmatter",
+      severity: "info",
+      message: `No YAML frontmatter block. Consider adding one (e.g. \`title\`, \`description\`, \`updated\`) so agents can peek at metadata without loading the full file (per codegateway.dev's 2026 progressive-disclosure guidance).`,
+    });
+  } else if (fm.recognizedKeys.length === 0) {
+    issues.push({
+      rule: "empty-frontmatter",
+      severity: "info",
+      message: `Frontmatter present but no recognized keys (${FRONTMATTER_RECOMMENDED_KEYS.join(", ")}). Add at least one for progressive disclosure to be useful.`,
+      line: 1,
     });
   }
 
@@ -264,6 +325,9 @@ export async function auditAgentsMd(root: string): Promise<AuditReport> {
   const overBudget = Math.max(0, lines.length - LONG_FILE_LINE_BUDGET);
   const lengthPenalty = Math.min(15, Math.ceil(overBudget / 40) * 5);
   if (lengthPenalty > 0) structure = Math.max(0, structure - lengthPenalty);
+  const fmAudit = probeFrontmatter(text);
+  const frontmatterBonus = fmAudit.present && fmAudit.recognizedKeys.length > 0 ? 5 : 0;
+  if (frontmatterBonus > 0) structure = Math.min(100, structure + frontmatterBonus);
 
   // Length — sweet spot 500–8000 bytes
   let length: number;
@@ -311,7 +375,7 @@ export async function auditAgentsMd(root: string): Promise<AuditReport> {
   const dimensions: DimensionScore[] = [
     { dimension: "completeness", score: completeness, notes: [`${covered}/${REQUIRED_SECTION_HINTS.length} required-section hints matched.`] },
     { dimension: "specificity", score: specificity, notes: [`${bulletCount} bullet(s), ${codeBlocks} code block(s), ${vagueHits} vague phrase(s).`] },
-    { dimension: "structure", score: structure, notes: [`${headings} heading(s); ${topLevel} top-level; ${lines.length} line(s) (budget ${LONG_FILE_LINE_BUDGET}).`] },
+    { dimension: "structure", score: structure, notes: [`${headings} heading(s); ${topLevel} top-level; ${lines.length} line(s) (budget ${LONG_FILE_LINE_BUDGET}); frontmatter ${fmAudit.present ? `present (${fmAudit.recognizedKeys.length} recognized key(s))` : "absent"}.`] },
     { dimension: "length", score: length, notes: [`${bytes} bytes.`] },
     { dimension: "freshness", score: freshness, notes: freshnessNotes },
     { dimension: "consistency", score: consistency, notes: [`${otherConfigs.length - unsynced}/${otherConfigs.length || 0} sibling configs appear synced.`] },

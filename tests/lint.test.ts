@@ -266,3 +266,56 @@ test("audit --nested honors max-depth", async () => {
   const full = await auditAgentsMdNested(dir, { maxDepth: 8 });
   assert.equal(full.totalFiles, 2);
 });
+
+test("lint flags missing-frontmatter (info) when AGENTS.md has no YAML block", async () => {
+  const dir = await mkTmp();
+  await fs.writeFile(
+    path.join(dir, "AGENTS.md"),
+    "# AGENTS.md\n\n## Project\nx\n\n## Stack\nNode\n\n## Commands\n```bash\nnpm test\n```\n\n## Conventions\n- Rule.\n",
+  );
+  const report = await lintAgentsMd(dir);
+  const fm = report.issues.find((i) => i.rule === "missing-frontmatter");
+  assert.ok(fm, "expected a missing-frontmatter issue");
+  assert.equal(fm!.severity, "info");
+});
+
+test("lint does not flag missing-frontmatter when a valid block is present", async () => {
+  const dir = await mkTmp();
+  const body = `---\ntitle: My Repo\ndescription: A sample TypeScript CLI.\nupdated: 2026-08-17\n---\n\n# AGENTS.md\n\n## Project\nx\n\n## Stack\nNode\n\n## Commands\n\`\`\`bash\nnpm test\n\`\`\`\n\n## Conventions\n- Rule.\n`;
+  await fs.writeFile(path.join(dir, "AGENTS.md"), body);
+  const report = await lintAgentsMd(dir);
+  assert.equal(report.issues.filter((i) => i.rule === "missing-frontmatter").length, 0);
+  assert.equal(report.issues.filter((i) => i.rule === "empty-frontmatter").length, 0);
+  assert.equal(report.issues.filter((i) => i.rule === "invalid-frontmatter").length, 0);
+});
+
+test("lint warns on invalid-frontmatter when the opening --- fence never closes", async () => {
+  const dir = await mkTmp();
+  const body = `---\ntitle: My Repo\ndescription: never closes\n\n# AGENTS.md\n\n## Project\nx\n\n## Stack\nNode\n\n## Commands\n\`\`\`bash\nnpm test\n\`\`\`\n\n## Conventions\n- Rule.\n`;
+  await fs.writeFile(path.join(dir, "AGENTS.md"), body);
+  const report = await lintAgentsMd(dir);
+  const bad = report.issues.find((i) => i.rule === "invalid-frontmatter");
+  assert.ok(bad, "expected an invalid-frontmatter issue");
+  assert.equal(bad!.severity, "warn");
+});
+
+test("audit structure dimension rewards a well-formed frontmatter block (+5)", async () => {
+  const noFmDir = await mkTmp();
+  const commonBody = `# AGENTS.md\n\n## Project\nA TS CLI.\n\n## Stack\nNode + TypeScript\n\n## Commands\n\`\`\`bash\nnpm test\n\`\`\`\n\n## Conventions\n- Use conventional commits.\n- No default exports.\n`;
+  await fs.writeFile(path.join(noFmDir, "AGENTS.md"), commonBody);
+  const noFm = await auditAgentsMd(noFmDir);
+  const noFmStructure = noFm.dimensions.find((d) => d.dimension === "structure")!.score;
+
+  const fmDir = await mkTmp();
+  const withFm = `---\ntitle: My Repo\ndescription: A sample TypeScript CLI.\nupdated: 2026-08-17\n---\n\n${commonBody}`;
+  await fs.writeFile(path.join(fmDir, "AGENTS.md"), withFm);
+  const fm = await auditAgentsMd(fmDir);
+  const fmStructure = fm.dimensions.find((d) => d.dimension === "structure")!.score;
+
+  assert.ok(fmStructure >= noFmStructure, `frontmatter structure (${fmStructure}) should be >= no-frontmatter (${noFmStructure})`);
+  assert.match(
+    fm.dimensions.find((d) => d.dimension === "structure")!.notes.join(" "),
+    /frontmatter present/,
+    "structure notes should mention frontmatter presence",
+  );
+});

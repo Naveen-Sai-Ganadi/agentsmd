@@ -71,6 +71,8 @@ Add `--json` to `lint`, `audit`, or `check` for machine-readable output.
 
 `lint` also emits an `info`-severity **`long-file`** issue when `AGENTS.md` exceeds ~200 lines (the folk-rule size budget popularized on r/ClaudeCode and codified in the 2026 morphllm field guide). The `structure` audit dimension applies a small penalty above the budget, so oversized configs slide from A to B before they get flagged in CI.
 
+`lint` further emits an `info`-severity **`missing-frontmatter`** issue when `AGENTS.md` has no leading YAML frontmatter block (and a `warn` **`invalid-frontmatter`** when the opening `---` fence never closes). Recognized keys today: `title`, `description`, `updated`, `owner`, `version`. Frontmatter lets agents peek at metadata without loading the full file — the *progressive disclosure* pattern from codegateway.dev's 2026 Codex playbook. The `structure` audit dimension awards a small (+5) bonus when a valid block is present with at least one recognized key.
+
 ### Flag cheatsheet
 
 ```sh

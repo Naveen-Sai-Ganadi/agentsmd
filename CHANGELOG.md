@@ -6,6 +6,16 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **`missing-frontmatter` / `invalid-frontmatter` / `empty-frontmatter` lint
+  rules** — flag `AGENTS.md` files with no leading YAML frontmatter block
+  (info), an unterminated opening `---` fence (warn), or a fenced block
+  with none of the recognized keys `title` / `description` / `updated` /
+  `owner` / `version` (info). Frontmatter enables *progressive disclosure*
+  — agents can peek at metadata without loading the full file — per
+  codegateway.dev's 2026 Codex playbook. The `structure` audit dimension
+  awards a small (+5) bonus when a valid, keyed block is present, so
+  well-annotated configs bank a fifth of a letter grade before being
+  compared on structure. 3 new tests (67 passing total).
 - **`version`** — new CLI command. Accepts `version`, `--version`, and `-v`.
   Prints `agentsmd <version>` (from `package.json`); add `--json` for
   `{ name, version, source }` machine output. Fills a small but obvious v0.1.0
