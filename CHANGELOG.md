@@ -6,6 +6,14 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Swift / SwiftUI stack detection** — `agentsmd init` now recognizes
+  `Package.swift` (SwiftPM), `*.xcodeproj` / `*.xcworkspace` directories
+  (Xcode), and SwiftUI usage (via `SwiftUI` string in `Package.swift` or
+  `import SwiftUI` in a top-level `.swift` file). Adds `Swift / SwiftPM`,
+  `Xcode project` / `Xcode workspace`, and `SwiftUI` to the `## Stack`
+  section of the generated `AGENTS.md`. Closes STATE.md decision #6 —
+  motivated by `twostraws/SwiftAgents` traction and the growing number of
+  Swift repos adopting AGENTS.md. 3 new tests (70 passing total).
 - **`missing-frontmatter` / `invalid-frontmatter` / `empty-frontmatter` lint
   rules** — flag `AGENTS.md` files with no leading YAML frontmatter block
   (info), an unterminated opening `---` fence (warn), or a fenced block

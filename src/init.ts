@@ -82,6 +82,30 @@ export async function scanRepo(root: string): Promise<RepoContext> {
   if (await fileExists(path.join(root, "Cargo.toml"))) stack.push("Rust / cargo");
   if (await fileExists(path.join(root, "go.mod"))) stack.push("Go modules");
   if (await fileExists(path.join(root, "Gemfile"))) stack.push("Ruby / bundler");
+  const swiftPkg = await readIfExists(path.join(root, "Package.swift"));
+  if (swiftPkg !== null) {
+    stack.push("Swift / SwiftPM");
+    if (/\bSwiftUI\b/.test(swiftPkg)) stack.push("SwiftUI");
+  }
+  try {
+    const entries = await fs.readdir(root, { withFileTypes: true });
+    const hasXcodeproj = entries.some((e) => e.isDirectory() && e.name.endsWith(".xcodeproj"));
+    const hasXcworkspace = entries.some((e) => e.isDirectory() && e.name.endsWith(".xcworkspace"));
+    if (hasXcodeproj) stack.push("Xcode project");
+    else if (hasXcworkspace) stack.push("Xcode workspace");
+    if (!stack.includes("SwiftUI") && (hasXcodeproj || hasXcworkspace || swiftPkg !== null)) {
+      for (const e of entries) {
+        if (!e.isFile() || !e.name.endsWith(".swift")) continue;
+        const body = await readIfExists(path.join(root, e.name));
+        if (body && /^\s*import\s+SwiftUI\b/m.test(body)) {
+          stack.push("SwiftUI");
+          break;
+        }
+      }
+    }
+  } catch {
+    // root not readable — skip Xcode/Swift heuristics
+  }
   return { name, stack };
 }
 

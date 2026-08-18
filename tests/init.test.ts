@@ -82,6 +82,42 @@ test("force + apply overwrites an existing AGENTS.md", async () => {
   assert.ok(!after.startsWith("old"));
 });
 
+test("plan detects Swift/SwiftPM stack from Package.swift", async () => {
+  const dir = await mkTmp();
+  await fs.writeFile(
+    path.join(dir, "Package.swift"),
+    '// swift-tools-version:5.9\nimport PackageDescription\nlet package = Package(name: "Sample")\n',
+  );
+  const plan = await planInit(dir, { mode: "blank" });
+  assert.ok(plan.repo.stack.some((s) => s === "Swift / SwiftPM"));
+  assert.ok(!plan.repo.stack.some((s) => s === "SwiftUI"));
+});
+
+test("plan detects SwiftUI from Package.swift dep + Xcode project directory", async () => {
+  const dir = await mkTmp();
+  await fs.writeFile(
+    path.join(dir, "Package.swift"),
+    '// swift-tools-version:5.9\nimport PackageDescription\nlet package = Package(name: "App", dependencies: [.package(url: "https://github.com/pointfreeco/swift-composable-architecture", from: "1.0.0")], targets: [.target(name: "App", dependencies: ["SwiftUI"])])\n',
+  );
+  await fs.mkdir(path.join(dir, "App.xcodeproj"));
+  const plan = await planInit(dir, { mode: "blank" });
+  assert.ok(plan.repo.stack.includes("Swift / SwiftPM"));
+  assert.ok(plan.repo.stack.includes("SwiftUI"));
+  assert.ok(plan.repo.stack.includes("Xcode project"));
+});
+
+test("plan infers SwiftUI from a top-level .swift file with import SwiftUI", async () => {
+  const dir = await mkTmp();
+  await fs.mkdir(path.join(dir, "App.xcodeproj"));
+  await fs.writeFile(
+    path.join(dir, "ContentView.swift"),
+    "import SwiftUI\n\nstruct ContentView: View { var body: some View { Text(\"hi\") } }\n",
+  );
+  const plan = await planInit(dir, { mode: "blank" });
+  assert.ok(plan.repo.stack.includes("Xcode project"));
+  assert.ok(plan.repo.stack.includes("SwiftUI"));
+});
+
 test("applyInit writes the rendered content to disk", async () => {
   const dir = await mkTmp();
   const plan = await planInit(dir, { mode: "blank" });
